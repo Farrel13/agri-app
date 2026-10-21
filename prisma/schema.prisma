@@ -1,0 +1,49 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Pastikan sesuai, gunakan "postgresql" jika siap ke Supabase/Neon
+  url      = env("DATABASE_URL")
+}
+
+// Definisi Role Pengguna
+enum Role {
+  PETANI
+  HUB
+  RESTAURANT
+}
+
+model User {
+  id        String    @id @default(cuid())
+  name      String
+  email     String?    @unique
+  password  String?   // Opsional untuk antisipasi OAuth, tapi wajib untuk login Credentials
+  role      Role      @default(PETANI)
+  username  String    @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relasi: Satu User (Petani) bisa memiliki banyak Product
+  products  Product[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  stock       Int
+  unit        String
+  priceFarmer Int
+  priceHub    Int?     // Harga jual dari Hub (baru ada setelah diverifikasi)
+  isVerified  Boolean  @default(false) // Status verifikasi oleh Hub
+  
+  // Relasi: Setiap produk terikat ke satu User (Petani)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
