@@ -1,4 +1,4 @@
-// export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -10,8 +10,8 @@ export default async function DashboardPetani() {
   const session = await getServerSession(authOptions);
 
   if (!session) {
-    redirect("/api/auth/signin");
-  }
+  redirect("/login");
+}
 
   if (session.user.role !== "PETANI") {
     redirect("/");
