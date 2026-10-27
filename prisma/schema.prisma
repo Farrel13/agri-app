@@ -5,7 +5,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" // Pastikan sesuai, gunakan "postgresql" jika siap ke Supabase/Neon
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -19,7 +19,7 @@ enum Role {
 model User {
   id        String    @id @default(cuid())
   name      String
-  email     String?    @unique
+  email     String?   @unique
   password  String?   // Opsional untuk antisipasi OAuth, tapi wajib untuk login Credentials
   role      Role      @default(PETANI)
   username  String    @unique
@@ -29,21 +29,31 @@ model User {
 
   // Relasi: Satu User (Petani) bisa memiliki banyak Product
   products  Product[]
+
+  // Relasi: Produk yang diverifikasi dan dijual oleh Hub ini
+  verifiedProducts Product[] @relation("HubVerifiedProducts")
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  name        String
-  stock       Int
-  unit        String
-  priceFarmer Int
-  priceHub    Int?     // Harga jual dari Hub (baru ada setelah diverifikasi)
-  isVerified  Boolean  @default(false) // Status verifikasi oleh Hub
+  id             String    @id @default(cuid())
+  name           String
+  description    String?   // Deskripsi dari Hub (opsional)
+  stock          Int
+  unit           String
+  priceFarmer    Int
+  priceHub       Int?      // Harga jual dari Hub (setelah diverifikasi)
+  isVerified     Boolean   @default(false) // Status verifikasi oleh Hub
+  imageUrl       String?   // URL gambar produk
+  imageExpiresAt DateTime? // Gambar kedaluwarsa setelah 24 jam (seperti status WA/IG)
   
-  // Relasi: Setiap produk terikat ke satu User (Petani)
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  // Relasi ke Petani yang menanam / memanen
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // Relasi ke Hub / Toko Pedagang yang memverifikasi dan menjual ke Restoran
+  verifiedById   String?
+  verifiedBy     User?     @relation("HubVerifiedProducts", fields: [verifiedById], references: [id])
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }

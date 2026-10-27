@@ -10,7 +10,9 @@ interface Product {
   unit: string;
   priceFarmer: number;
   isVerified: boolean;
-  createdAt: Date;
+  imageUrl?: string | null;
+  imageExpiresAt?: Date | string | null;
+  createdAt: Date | string;
 }
 
 export default function PetaniClient({ products }: { products: Product[] }) {
@@ -18,8 +20,18 @@ export default function PetaniClient({ products }: { products: Product[] }) {
   const [stock, setStock] = useState("");
   const [unit, setUnit] = useState("kg");
   const [priceFarmer, setPriceFarmer] = useState("");
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +43,9 @@ export default function PetaniClient({ products }: { products: Product[] }) {
     formData.append("stock", stock);
     formData.append("unit", unit);
     formData.append("priceFarmer", priceFarmer);
+    if (selectedImage) {
+      formData.append("image", selectedImage);
+    }
 
     const res = await addProductAction(formData);
 
@@ -40,9 +55,17 @@ export default function PetaniClient({ products }: { products: Product[] }) {
       setName("");
       setStock("");
       setPriceFarmer("");
+      setSelectedImage(null);
+      setPreviewUrl(null);
     } else {
       setMessage({ type: "error", text: res.message });
     }
+  };
+
+  // Cek apakah gambar masih aktif (< 24 jam)
+  const isImageValid = (item: Product) => {
+    if (!item.imageUrl || !item.imageExpiresAt) return false;
+    return new Date(item.imageExpiresAt).getTime() > Date.now();
   };
 
   return (
@@ -134,10 +157,45 @@ export default function PetaniClient({ products }: { products: Product[] }) {
               />
             </div>
 
+            {/* Input Foto Hasil Panen (Status 24 Jam) */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1 flex items-center justify-between">
+                <span>Foto Panen Terkini</span>
+                <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                  Aktif 24 Jam ⏱️
+                </span>
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+              />
+              {previewUrl && (
+                <div className="mt-2 relative rounded-lg overflow-hidden border border-emerald-300 w-full h-36">
+                  <img
+                    src={previewUrl}
+                    alt="Preview Panen"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedImage(null);
+                      setPreviewUrl(null);
+                    }}
+                    className="absolute top-1 right-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full hover:bg-black/80"
+                  >
+                    ✕ Batal
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50 mt-2"
+              className="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50 mt-2 cursor-pointer"
             >
               {loading ? "Menyimpan..." : "Kirim ke Hub"}
             </button>
@@ -157,6 +215,7 @@ export default function PetaniClient({ products }: { products: Product[] }) {
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50 border-b text-gray-600 font-semibold uppercase text-xs">
                   <tr>
+                    <th className="py-3 px-4">Foto (24 Jam)</th>
                     <th className="py-3 px-4">Nama Produk</th>
                     <th className="py-3 px-4">Stok</th>
                     <th className="py-3 px-4">Harga Petani</th>
@@ -164,28 +223,50 @@ export default function PetaniClient({ products }: { products: Product[] }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {products.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50/50">
-                      <td className="py-3 px-4 font-medium text-gray-900">{item.name}</td>
-                      <td className="py-3 px-4 text-gray-700">
-                        {item.stock} {item.unit}
-                      </td>
-                      <td className="py-3 px-4 text-emerald-600 font-semibold">
-                        Rp {item.priceFarmer.toLocaleString("id-ID")}
-                      </td>
-                      <td className="py-3 px-4">
-                        {item.isVerified ? (
-                          <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">
-                            ✓ Terverifikasi
-                          </span>
-                        ) : (
-                          <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-medium">
-                            ⏳ Menunggu Hub
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {products.map((item) => {
+                    const validImage = isImageValid(item);
+                    return (
+                      <tr key={item.id} className="hover:bg-gray-50/50">
+                        <td className="py-3 px-4">
+                          {validImage ? (
+                            <div className="relative group w-12 h-12">
+                              <img
+                                src={item.imageUrl!}
+                                alt={item.name}
+                                className="w-12 h-12 rounded-lg object-cover border-2 border-emerald-500 shadow-sm"
+                              />
+                              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 text-xs text-center p-1 leading-tight">
+                              {item.imageUrl ? "Expired" : "No Foto"}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 font-medium text-gray-900">{item.name}</td>
+                        <td className="py-3 px-4 text-gray-700">
+                          {item.stock} {item.unit}
+                        </td>
+                        <td className="py-3 px-4 text-emerald-600 font-semibold">
+                          Rp {item.priceFarmer.toLocaleString("id-ID")}
+                        </td>
+                        <td className="py-3 px-4">
+                          {item.isVerified ? (
+                            <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">
+                              ✓ Terverifikasi
+                            </span>
+                          ) : (
+                            <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-medium">
+                              ⏳ Menunggu Hub
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

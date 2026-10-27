@@ -1,15 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { placeOrderAction, CartItemInput } from "./actions";
 
 interface Product {
   id: string;
   name: string;
+  description?: string | null;
   stock: number;
   unit: string;
   priceHub: number | null;
-  user?: { name: string | null } | null;
+  imageUrl?: string | null;
+  imageExpiresAt?: Date | string | null;
+  user?: { id: string; name: string | null } | null;
+  verifiedBy?: { id: string; name: string | null } | null;
 }
 
 interface CartItem {
@@ -18,9 +23,32 @@ interface CartItem {
 }
 
 export default function RestoranClient({ products }: { products: Product[] }) {
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Pencarian komprehensif mencakup semua info di kartu:
+  // - Nama bahan baku
+  // - Nama toko pedagang (Hub)
+  // - Deskripsi bahan
+  // - Nama petani asal
+  const filteredProducts = products.filter((p) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+
+    const matchName = p.name.toLowerCase().includes(q);
+    const matchStore = p.verifiedBy?.name ? p.verifiedBy.name.toLowerCase().includes(q) : false;
+    const matchDesc = p.description ? p.description.toLowerCase().includes(q) : false;
+    const matchFarmer = p.user?.name ? p.user.name.toLowerCase().includes(q) : false;
+
+    return matchName || matchStore || matchDesc || matchFarmer;
+  });
+
+  const isImageValid = (imageUrl?: string | null, imageExpiresAt?: Date | string | null) => {
+    if (!imageUrl || !imageExpiresAt) return false;
+    return new Date(imageExpiresAt).getTime() > Date.now();
+  };
 
   const addToCart = (product: Product) => {
     setMessage(null);
@@ -88,7 +116,9 @@ export default function RestoranClient({ products }: { products: Product[] }) {
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Pemesanan Bahan Baku Restoran</h1>
-        <p className="text-gray-600">Pilih bahan segar dari Hub dan langsung buat pesanan.</p>
+        <p className="text-gray-600">
+          Cari berdasarkan nama bahan, toko pedagang, deskripsi, atau asal petani. Klik nama toko untuk melihat halaman khusus toko tersebut.
+        </p>
       </div>
 
       {message && (
@@ -103,56 +133,175 @@ export default function RestoranClient({ products }: { products: Product[] }) {
         </div>
       )}
 
+      {/* Kolom Pencarian Universal (Nama Bahan, Toko, Deskripsi, Petani) */}
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row items-center gap-3">
+        <div className="relative flex-1 w-full">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
+            🔍
+          </span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari bahan baku, nama toko pedagang, deskripsi, atau asal petani..."
+            className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 text-sm cursor-pointer"
+              title="Hapus pencarian"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {searchQuery && (
+          <div className="text-xs text-gray-500 font-medium whitespace-nowrap">
+            Hasil: <strong>{filteredProducts.length}</strong> bahan ditemukan
+          </div>
+        )}
+      </div>
+
+      {/* Konten Katalog & Keranjang */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-800">Katalog Bahan Baku Tersedia</h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold text-gray-800">
+              {searchQuery ? `Hasil Pencarian "${searchQuery}"` : "Semua Bahan Baku Tersedia"}
+            </h2>
+            <span className="text-xs text-gray-500">{filteredProducts.length} bahan</span>
+          </div>
 
-          {products.length === 0 ? (
-            <div className="bg-white p-12 rounded-xl border border-dashed text-center text-gray-500">
-              Belum ada bahan baku yang tersedia di pasaran saat ini.
+          {/* Kondisi Jika Pencarian Kosong */}
+          {filteredProducts.length === 0 ? (
+            <div className="bg-white p-12 rounded-2xl border border-dashed border-gray-300 text-center space-y-3">
+              <div className="text-4xl">📦</div>
+              <h3 className="font-bold text-gray-800 text-base">Bahan Baku Tidak Ditemukan</h3>
+              <p className="text-gray-500 text-xs max-w-sm mx-auto">
+                {searchQuery
+                  ? `Tidak ada informasi (nama bahan, toko, atau deskripsi) yang cocok dengan "${searchQuery}".`
+                  : "Belum ada bahan baku yang tersedia di pasar saat ini."}
+              </p>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="px-3.5 py-1.5 bg-blue-50 text-blue-600 text-xs font-semibold rounded-lg hover:bg-blue-100 transition cursor-pointer"
+                >
+                  Reset Pencarian
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {products.map((item) => {
+              {filteredProducts.map((item) => {
                 const inCart = cart.find((c) => c.product.id === item.id);
+                const validImage = isImageValid(item.imageUrl, item.imageExpiresAt);
+
                 return (
                   <div
                     key={item.id}
-                    className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3 flex flex-col justify-between"
+                    className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-md transition"
                   >
-                    <div>
-                      <div className="flex justify-between items-start">
-                        <h3 className="font-bold text-gray-900 text-base">{item.name}</h3>
-                        <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2 py-0.5 rounded">
-                          Stok: {item.stock} {item.unit}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Petani: {item.user?.name || "Mitra Tani"}
-                      </p>
-                      <p className="text-emerald-600 font-bold text-lg mt-2">
-                        Rp {(item.priceHub || 0).toLocaleString("id-ID")}{" "}
-                        <span className="text-xs font-normal text-gray-500">/ {item.unit}</span>
-                      </p>
+                    {/* Foto Panen dengan status 24 jam */}
+                    <div className="h-44 w-full bg-gray-100 relative">
+                      {validImage ? (
+                        <>
+                          <img
+                            src={item.imageUrl!}
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-2 left-2 bg-emerald-600/90 text-white text-[11px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm flex items-center gap-1 shadow">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-200 animate-pulse"></span>
+                            Live Update Panen (&lt;24 Jam)
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 text-xs bg-gray-50">
+                          <span className="text-2xl mb-1">📷</span>
+                          <span>Foto panen telah kadaluarsa / terhapus</span>
+                        </div>
+                      )}
                     </div>
 
-                    <button
-                      onClick={() => addToCart(item)}
-                      disabled={item.stock <= 0}
-                      className={`w-full py-2 rounded-lg text-sm font-medium transition ${
-                        item.stock <= 0
-                          ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-start gap-2">
+                          <h3 className="font-bold text-gray-900 text-base">{item.name}</h3>
+                          <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2 py-0.5 rounded shrink-0">
+                            Stok: {item.stock} {item.unit}
+                          </span>
+                        </div>
+
+                        {/* Keterangan Deskripsi dari Hub */}
+                        {item.description ? (
+                          <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
+                            <span className="font-semibold text-gray-700">Deskripsi:</span>{" "}
+                            {item.description}
+                          </div>
+                        ) : null}
+
+                        {/* Keterangan Toko Pedagang & Asal Petani */}
+                        <div className="pt-2 border-t border-gray-100 text-xs space-y-1.5">
+                          {/* Nama Toko Pedagang yang diklik langsung menuju ke halaman toko */}
+                          <div className="flex items-center gap-1.5 text-gray-600">
+                            <span>🏪</span>
+                            <span>
+                              Toko:{" "}
+                              {item.verifiedBy?.id ? (
+                                <Link
+                                  href={`/restoran/toko/${item.verifiedBy.id}`}
+                                  className="font-bold text-blue-600 hover:text-blue-800 underline decoration-blue-300 hover:decoration-blue-600 cursor-pointer"
+                                  title="Klik untuk membuka halaman toko ini"
+                                >
+                                  Toko {item.verifiedBy.name || "Pedagang"} ↗
+                                </Link>
+                              ) : (
+                                <strong className="text-gray-700">
+                                  Toko {item.verifiedBy?.name || "Pedagang"}
+                                </strong>
+                              )}
+                            </span>
+                          </div>
+
+                          {/* Keterangan Petani */}
+                          <div className="flex items-center gap-1.5 text-gray-600">
+                            <span>🌱</span>
+                            <span>
+                              Bahan dari Petani:{" "}
+                              <strong className="text-emerald-700">
+                                {item.user?.name || "Mitra Petani"}
+                              </strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        <p className="text-emerald-600 font-bold text-lg pt-1">
+                          Rp {(item.priceHub || 0).toLocaleString("id-ID")}{" "}
+                          <span className="text-xs font-normal text-gray-500">/ {item.unit}</span>
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => addToCart(item)}
+                        disabled={item.stock <= 0}
+                        className={`w-full py-2 rounded-lg text-sm font-medium transition cursor-pointer mt-3 ${
+                          item.stock <= 0
+                            ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                            : inCart
+                            ? "bg-amber-600 text-white hover:bg-amber-700"
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
+                      >
+                        {item.stock <= 0
+                          ? "Stok Habis"
                           : inCart
-                          ? "bg-amber-600 text-white hover:bg-amber-700"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                      }`}
-                    >
-                      {item.stock <= 0
-                        ? "Stok Habis"
-                        : inCart
-                        ? `Tambah Lagi (${inCart.quantity})`
-                        : "+ Tambah ke Keranjang"}
-                    </button>
+                          ? `Tambah Lagi (${inCart.quantity})`
+                          : "+ Tambah ke Keranjang"}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -160,6 +309,7 @@ export default function RestoranClient({ products }: { products: Product[] }) {
           )}
         </div>
 
+        {/* Keranjang Belanja */}
         <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-fit space-y-6">
           <h2 className="text-lg font-bold text-gray-900 border-b pb-3 flex justify-between items-center">
             <span>🛒 Keranjang Belanja</span>
@@ -182,6 +332,10 @@ export default function RestoranClient({ products }: { products: Product[] }) {
                   >
                     <div className="flex-1">
                       <p className="font-medium text-sm text-gray-800">{item.product.name}</p>
+                      <p className="text-[11px] text-gray-500">
+                        Toko: {item.product.verifiedBy?.name || "Pedagang"} • Dari:{" "}
+                        {item.product.user?.name || "Petani"}
+                      </p>
                       <p className="text-xs text-emerald-600 font-semibold">
                         Rp {((item.product.priceHub || 0) * item.quantity).toLocaleString("id-ID")}
                       </p>
@@ -204,7 +358,7 @@ export default function RestoranClient({ products }: { products: Product[] }) {
                       />
                       <button
                         onClick={() => removeFromCart(item.product.id)}
-                        className="text-red-500 hover:text-red-700 text-xs px-1"
+                        className="text-red-500 hover:text-red-700 text-xs px-1 cursor-pointer"
                         title="Hapus"
                       >
                         ✕
@@ -225,7 +379,7 @@ export default function RestoranClient({ products }: { products: Product[] }) {
                 <button
                   onClick={handleCheckout}
                   disabled={loading}
-                  className="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
+                  className="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50 cursor-pointer"
                 >
                   {loading ? "Memproses Pesanan..." : "Pesan Sekarang"}
                 </button>

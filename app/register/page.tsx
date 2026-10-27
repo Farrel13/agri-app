@@ -15,9 +15,23 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Kriteria password
+  const hasMinLen = formData.password.length >= 8;
+  const hasUpper = /[A-Z]/.test(formData.password);
+  const hasLower = /[a-z]/.test(formData.password);
+  const hasNumber = /\d/.test(formData.password);
+  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password);
+  const isPasswordStrong = hasMinLen && hasUpper && hasLower && hasNumber && hasSpecial;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!isPasswordStrong) {
+      setError("Pastikan password memenuhi semua kriteria keamanan.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -33,7 +47,7 @@ export default function RegisterPage() {
         const data = await res.json();
         setError(data.message || "Gagal mendaftar");
       }
-    } catch (err) {
+    } catch {
       setError("Terjadi kesalahan pada server");
     } finally {
       setLoading(false);
@@ -41,7 +55,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md border">
         <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">Daftar Akun Baru</h1>
 
@@ -78,7 +92,29 @@ export default function RegisterPage() {
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Minimal 8 karakter kombinasi"
             />
+            {/* Indikator Real-time Kekuatan Password */}
+            {formData.password.length > 0 && (
+              <div className="mt-2 p-2.5 bg-gray-50 rounded-lg border text-xs space-y-1">
+                <p className="font-medium text-gray-600 mb-1">Syarat Password:</p>
+                <div className={`flex items-center gap-1.5 ${hasMinLen ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
+                  <span>{hasMinLen ? "✓" : "○"}</span> Minimal 8 karakter
+                </div>
+                <div className={`flex items-center gap-1.5 ${hasUpper ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
+                  <span>{hasUpper ? "✓" : "○"}</span> Huruf besar (A-Z)
+                </div>
+                <div className={`flex items-center gap-1.5 ${hasLower ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
+                  <span>{hasLower ? "✓" : "○"}</span> Huruf kecil (a-z)
+                </div>
+                <div className={`flex items-center gap-1.5 ${hasNumber ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
+                  <span>{hasNumber ? "✓" : "○"}</span> Angka (0-9)
+                </div>
+                <div className={`flex items-center gap-1.5 ${hasSpecial ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
+                  <span>{hasSpecial ? "✓" : "○"}</span> Karakter khusus/simbol (@, #, $, dll)
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
@@ -97,7 +133,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-emerald-600 text-white font-semibold py-2.5 rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 mt-4"
+            className="w-full bg-emerald-600 text-white font-semibold py-2.5 rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 mt-4 cursor-pointer"
           >
             {loading ? "Mendaftarkan..." : "Daftar Sekarang"}
           </button>
