@@ -4,8 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
-import { writeFile } from "fs/promises";
+import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import crypto from "crypto";
+import { validateImageBuffer } from "@/lib/file-validator";
 
 export interface TambahPanenInput {
   name: string;
@@ -26,7 +28,11 @@ export async function tambahPanen(data: TambahPanenInput) {
 
     const { name, stock, unit, priceFarmer, imageUrl } = data;
 
-    if (!name || isNaN(stock) || isNaN(priceFarmer) || stock <= 0 || priceFarmer <= 0) {
+    // Sanitasi dan validasi input
+    const cleanName = (name || "").trim().slice(0, 100);
+    const cleanUnit = ["kg", "ton", "ikat", "karung"].includes(unit) ? unit : "kg";
+
+    if (!cleanName || isNaN(stock) || isNaN(priceFarmer) || stock <= 0 || priceFarmer <= 0) {
       return { success: false, message: "Mohon isi semua data dengan benar." };
     }
 
@@ -35,10 +41,10 @@ export async function tambahPanen(data: TambahPanenInput) {
 
     await prisma.product.create({
       data: {
-        name,
-        stock: Number(stock),
-        unit,
-        priceFarmer: Number(priceFarmer),
+        name: cleanName,
+        stock: Math.floor(Number(stock)),
+        unit: cleanUnit,
+        priceFarmer: Math.floor(Number(priceFarmer)),
         userId: session.user.id,
         isVerified: false,
         imageUrl: imageUrl || null,
@@ -55,7 +61,7 @@ export async function tambahPanen(data: TambahPanenInput) {
   }
 }
 
-// 2. Fungsi Server Action menerima FormData (termasuk file upload gambar)
+// 2. Fungsi Server Action menerima FormData dengan pemeriksaan biner forensik
 export async function addProductAction(formData: FormData) {
   const name = formData.get("name") as string;
   const stock = Number(formData.get("stock"));
@@ -70,16 +76,29 @@ export async function addProductAction(formData: FormData) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      // Buat nama file unik
-      const ext = path.extname(file.name) || ".jpg";
-      const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}${ext}`;
-      const uploadDir = path.join(process.cwd(), "public", "uploads");
-      const filePath = path.join(uploadDir, filename);
+      // Uji forensik biner: Magic Byte & Polyglot inspection
+      const validation = validateImageBuffer(buffer, 3 * 1024 * 1024);
+      if (!validation.isValid) {
+        return {
+          success: false,
+          message: validation.error || "Berkas gambar ditolak oleh sistem keamanan.",
+        };
+      }
 
+      // Lindungi dari Path Traversal: Gunakan UUID / Crypto random filename murni
+      const randomHex = crypto.randomBytes(16).toString("hex");
+      const filename = `${Date.now()}-${randomHex}${validation.sanitizedExt}`;
+
+      const uploadDir = path.join(process.cwd(), "public", "uploads");
+      await mkdir(uploadDir, { recursive: true });
+
+      const filePath = path.join(uploadDir, filename);
       await writeFile(filePath, buffer);
+      
       imageUrl = `/uploads/${filename}`;
     } catch (err) {
-      console.error("Gagal upload gambar:", err);
+      console.error("Gagal memproses unggahan gambar:", err);
+      return { success: false, message: "Gagal memproses unggahan gambar." };
     }
   }
 
