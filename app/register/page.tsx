@@ -8,6 +8,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     name: "",
+    email: "",
     username: "",
     password: "",
     role: "PETANI", // Default role
@@ -67,9 +68,22 @@ export default function RegisterPage() {
             <input
               type="text"
               required
+              placeholder="Contoh: Budi Santoso"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Alamat Email</label>
+            <input
+              type="email"
+              required
+              placeholder="nama@email.com"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
             />
           </div>
           
@@ -78,9 +92,10 @@ export default function RegisterPage() {
             <input
               type="text"
               required
+              placeholder="budi_tani"
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
             />
           </div>
 
@@ -91,10 +106,9 @@ export default function RegisterPage() {
               required
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
               placeholder="Minimal 8 karakter kombinasi"
             />
-            {/* Indikator Real-time Kekuatan Password */}
             {formData.password.length > 0 && (
               <div className="mt-2 p-2.5 bg-gray-50 rounded-lg border text-xs space-y-1">
                 <p className="font-medium text-gray-600 mb-1">Syarat Password:</p>
@@ -122,7 +136,7 @@ export default function RegisterPage() {
             <select
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+              className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-sm"
             >
               <option value="PETANI">Petani</option>
               <option value="HUB">Hub</option>
@@ -133,7 +147,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-emerald-600 text-white font-semibold py-2.5 rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 mt-4 cursor-pointer"
+            className="w-full bg-emerald-600 text-white font-semibold py-2.5 rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 mt-4 cursor-pointer text-sm"
           >
             {loading ? "Mendaftarkan..." : "Daftar Sekarang"}
           </button>

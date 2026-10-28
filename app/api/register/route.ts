@@ -4,18 +4,17 @@ import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {
   try {
-    const { name, username, password, role } = await request.json();
+    const { name, email, username, password, role } = await request.json();
 
-    if (!name || !username || !password || !role) {
+    if (!name || !email || !username || !password || !role) {
       return NextResponse.json({ message: "Semua field harus diisi" }, { status: 400 });
     }
 
-    // Validasi kekuatan password:
-    // - Minimal 8 karakter
-    // - Minimal 1 huruf besar (A-Z)
-    // - Minimal 1 huruf kecil (a-z)
-    // - Minimal 1 angka (0-9)
-    // - Minimal 1 karakter spesial/simbol (!@#$%^&* dll)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ message: "Format email tidak valid" }, { status: 400 });
+    }
+
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
     if (!passwordRegex.test(password)) {
       return NextResponse.json(
@@ -36,13 +35,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Username sudah terdaftar" }, { status: 400 });
     }
 
+    // Cek apakah email sudah dipakai
+    const existingEmail = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingEmail) {
+      return NextResponse.json({ message: "Alamat email sudah digunakan" }, { status: 400 });
+    }
+
     // Hash password sebelum disimpan
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Simpan ke database
+    // Simpan ke database beserta email
     await prisma.user.create({
       data: {
         name,
+        email,
         username,
         password: hashedPassword,
         role,

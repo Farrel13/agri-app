@@ -9,51 +9,252 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Definisi Role Pengguna
+// ==========================================
+// ENUMS (Status Aliran Data & Jenis Role)
+// ==========================================
+
 enum Role {
   PETANI
   HUB
   RESTAURANT
 }
 
+enum OrderStatus {
+  MENUNGGU_PEMBAYARAN
+  DIPROSES_HUB
+  DIKIRIM
+  SELESAI
+  DIBATALKAN
+}
+
+enum PaymentMethod {
+  TRANSFER_BANK
+  E_WALLET
+  COD
+}
+
+enum PaymentStatus {
+  PENDING
+  LUNAS
+  GAGAL
+  REFUND
+}
+
+enum NotificationType {
+  PESANAN_BARU
+  STATUS_PESANAN
+  PANEN_TERVERIFIKASI
+  STOK_HABIS
+  SISTEM
+}
+
+// ==========================================
+// 1. MODEL USER
+// ==========================================
 model User {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  email     String?   @unique
-  password  String?   // Opsional untuk antisipasi OAuth, tapi wajib untuk login Credentials
-  role      Role      @default(PETANI)
-  username  String    @unique
+  email     String?  @unique
+  password  String?  // Opsional untuk antisipasi OAuth, wajib untuk Credentials
+  role      Role     @default(PETANI)
+  username  String   @unique
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Relasi: Satu User (Petani) bisa memiliki banyak Product
+  // Relasi: Produk yang diunggah oleh Petani
   products  Product[]
 
   // Relasi: Produk yang diverifikasi dan dijual oleh Hub ini
   verifiedProducts Product[] @relation("HubVerifiedProducts")
+
+  // Relasi: Pesanan yang dibuat oleh Restoran
+  ordersAsBuyer    Order[]   @relation("BuyerOrders")
+
+  // Relasi: Pesanan yang diterima dan diproses oleh Toko Hub
+  ordersAsHub      Order[]   @relation("HubOrders")
+
+  // Relasi: Alamat pengiriman yang dimiliki user
+  addresses        Address[]
+
+  // Relasi: Ulasan yang ditulis oleh Restoran
+  reviews          Review[]
+
+  // Relasi: Notifikasi yang ditujukan untuk user ini
+  notifications    Notification[]
 }
 
+// ==========================================
+// 2. MODEL PRODUCT (Bahan Baku & Etalase)
+// ==========================================
 model Product {
   id             String    @id @default(cuid())
   name           String
   description    String?   // Deskripsi dari Hub (opsional)
   stock          Int
-  unit           String
-  priceFarmer    Int
-  priceHub       Int?      // Harga jual dari Hub (setelah diverifikasi)
-  isVerified     Boolean   @default(false) // Status verifikasi oleh Hub
-  imageUrl       String?   // URL gambar produk
-  imageExpiresAt DateTime? // Gambar kedaluwarsa setelah 24 jam (seperti status WA/IG)
-  
-  // Relasi ke Petani yang menanam / memanen
-  userId         String
-  user           User      @relation(fields: [userId], references: [id])
+  unit           String    // kg, ikat, ton, sak, gram
+  priceFarmer    Int       // Harga modal dari Petani
+  priceHub       Int?      // Harga jual dari Hub ke Restoran
+  isVerified     Boolean   @default(false)
+  imageUrl       String?
+  imageExpiresAt DateTime? // Foto panen 24 jam
 
-  // Relasi ke Hub / Toko Pedagang yang memverifikasi dan menjual ke Restoran
+  // Relasi Petani (Penanam)
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relasi Hub (Pengepul / Toko)
   verifiedById   String?
-  verifiedBy     User?     @relation("HubVerifiedProducts", fields: [verifiedById], references: [id])
+  verifiedBy     User?     @relation("HubVerifiedProducts", fields: [verifiedById], references: [id], onDelete: SetNull)
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  // Relasi ke Item Pesanan
+  orderItems     OrderItem[]
+
+  // Relasi ke Review & Rating
+  reviews        Review[]
+}
+
+// ==========================================
+// 3. MODEL ORDER (Header Transaksi)
+// ==========================================
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique // Contoh: ORD-20261028-001
+  status          OrderStatus   @default(MENUNGGU_PEMBAYARAN)
+  totalAmount     Int           // Total harga sebelum ongkir / potongan
+  deliveryFee     Int           @default(0) // Ongkos kirim Hub -> Restoran
+  finalAmount     Int           // Total tagihan bersih (totalAmount + deliveryFee)
+  notes           String?       // Catatan khusus pemesan
+
+  // Bukti Penerimaan Barang oleh Restoran (Foto berlaku 24 jam)
+  receivedImageUrl       String?
+  receivedImageExpiresAt DateTime?
+  receivedNotes          String?
+  receivedAt             DateTime?
+
+  // Hubungan ke Restoran (Pembeli)
+  buyerId         String
+  buyer           User          @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
+
+  // Hubungan ke Toko Hub (Penyedia barang)
+  hubId           String
+  hub             User          @relation("HubOrders", fields: [hubId], references: [id], onDelete: Restrict)
+
+  // Hubungan ke Alamat Pengiriman
+  addressId       String?
+  deliveryAddress Address?      @relation(fields: [addressId], references: [id], onDelete: SetNull)
+
+  // Relasi Item Produk di dalam pesanan ini
+  items           OrderItem[]
+
+  // Relasi Pembayaran
+  payment         Payment?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+// ==========================================
+// 4. MODEL ORDER ITEM (Rincian Produk Pesanan)
+// ==========================================
+model OrderItem {
+  id             String   @id @default(cuid())
+  quantity       Int
+  pricePerUnit   Int      // Snapshot harga satuan saat pesanan dibuat (priceHub)
+  subtotal       Int      // quantity * pricePerUnit
+
+  // Relasi ke Order Induk
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Relasi ke Produk
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  createdAt      DateTime @default(now())
+}
+
+// ==========================================
+// 5. MODEL PAYMENT (Detail Pembayaran)
+// ==========================================
+model Payment {
+  id            String        @id @default(cuid())
+  amount        Int
+  method        PaymentMethod @default(TRANSFER_BANK)
+  status        PaymentStatus @default(PENDING)
+  paymentProof  String?       // URL bukti transfer/struk
+  paidAt        DateTime?
+
+  // Relasi 1-to-1 dengan Order
+  orderId       String        @unique
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+// ==========================================
+// 6. MODEL ADDRESS (Alamat Pengiriman / Gudang)
+// ==========================================
+model Address {
+  id           String   @id @default(cuid())
+  label        String   // "Dapur Utama", "Cabang Senopati", "Gudang Hub"
+  recipientName String  // Nama penerima barang
+  phoneNumber  String   // Kontak aktif kurir/penerima
+  street       String   // Jalan, No Rumah/Resto, RT/RW
+  city         String   // Kota / Kabupaten
+  province     String   // Provinsi
+  postalCode   String?  // Kode pos
+  isPrimary    Boolean  @default(false)
+
+  // Kepemilikan Alamat oleh User (Restoran / Hub)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Riwayat pesanan yang menggunakan alamat ini
+  orders       Order[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ==========================================
+// 7. MODEL REVIEW (Rating & Ulasan Kualitas Produk)
+// ==========================================
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int      // Skor 1 sampai 5 bintang
+  comment   String?  // Feedback kesegaran bahan panen
+
+  // Pembeli yang memberikan ulasan
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Produk yang diulas
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 8. MODEL NOTIFICATION (Pemberitahuan Sistem)
+// ==========================================
+model Notification {
+  id        String           @id @default(cuid())
+  title     String
+  message   String
+  type      NotificationType @default(SISTEM)
+  isRead    Boolean          @default(false)
+  linkUrl   String?          // URL tujuan redirect saat notif diklik (cth: /hub/pesanan/xyz)
+
+  // User penerima notifikasi
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime         @default(now())
 }

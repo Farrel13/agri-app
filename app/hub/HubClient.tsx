@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { verifyProductAction, updateStoreProductAction } from "./actions";
+import { compressImage } from "@/lib/compressImage";
 
 interface Product {
   id: string;
@@ -33,12 +34,33 @@ export default function HubClient({
   const [activeTab, setActiveTab] = useState<"VERIFIKASI" | "ETALASE">("VERIFIKASI");
   const [searchMyStore, setSearchMyStore] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editImage, setEditImage] = useState<File | null>(null);
+  const [editPreview, setEditPreview] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const isImageValid = (imageUrl?: string | null, imageExpiresAt?: Date | string | null) => {
     if (!imageUrl || !imageExpiresAt) return false;
     return new Date(imageExpiresAt).getTime() > Date.now();
+  };
+
+  const handleEditImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        setCompressing(true);
+        const compressed = await compressImage(file, 1200, 1200, 0.75);
+        setEditImage(compressed);
+        setEditPreview(URL.createObjectURL(compressed));
+      } catch (err) {
+        console.error("Gagal kompres gambar:", err);
+        setEditImage(file);
+        setEditPreview(URL.createObjectURL(file));
+      } finally {
+        setCompressing(false);
+      }
+    }
   };
 
   const handleVerify = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -64,18 +86,23 @@ export default function HubClient({
     setMessage(null);
 
     const formData = new FormData(e.currentTarget);
+    if (editImage) {
+      formData.set("image", editImage);
+    }
+
     const res = await updateStoreProductAction(formData);
 
     setLoading(false);
     if (res.success) {
       setMessage({ type: "success", text: res.message });
       setEditingProduct(null);
+      setEditImage(null);
+      setEditPreview(null);
     } else {
       setMessage({ type: "error", text: res.message });
     }
   };
 
-  // Filter bahan di etalase toko sendiri berdasarkan kata kunci pencarian
   const filteredMyStore = myStoreProducts.filter((p) => {
     const q = searchMyStore.toLowerCase().trim();
     if (!q) return true;
@@ -270,10 +297,9 @@ export default function HubClient({
         </section>
       )}
 
-      {/* ===================== TAB 2: ETALASE TOKO PEDAGANG (MIRIP RESTORAN VIEW) ===================== */}
+      {/* ===================== TAB 2: ETALASE TOKO PEDAGANG ===================== */}
       {activeTab === "ETALASE" && (
         <section className="space-y-6">
-          {/* Bar Pencarian Khusus Toko Sendiri */}
           <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-gray-900">
@@ -298,7 +324,6 @@ export default function HubClient({
             </div>
           </div>
 
-          {/* Grid Produk Mirip Tampilan Halaman Restoran */}
           {filteredMyStore.length === 0 ? (
             <div className="bg-white p-12 rounded-2xl border border-dashed text-center text-gray-500 space-y-2">
               <span className="text-3xl block">📦</span>
@@ -321,7 +346,6 @@ export default function HubClient({
                     key={item.id}
                     className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between"
                   >
-                    {/* Foto Panen */}
                     <div className="h-44 w-full bg-gray-100 relative">
                       {validImage ? (
                         <>
@@ -343,7 +367,6 @@ export default function HubClient({
                       )}
                     </div>
 
-                    {/* Rincian Produk */}
                     <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="space-y-2">
                         <div className="flex justify-between items-start gap-2">
@@ -353,7 +376,6 @@ export default function HubClient({
                           </span>
                         </div>
 
-                        {/* Deskripsi Produk */}
                         {item.description ? (
                           <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
                             <span className="font-semibold text-gray-700">Deskripsi:</span>{" "}
@@ -385,10 +407,14 @@ export default function HubClient({
                       </div>
 
                       <button
-                        onClick={() => setEditingProduct(item)}
+                        onClick={() => {
+                          setEditingProduct(item);
+                          setEditImage(null);
+                          setEditPreview(null);
+                        }}
                         className="w-full py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 rounded-xl text-xs font-semibold transition cursor-pointer mt-2"
                       >
-                        ✏️ Edit Harga & Stok Toko
+                        ✏️ Edit Harga, Stok & Foto Toko
                       </button>
                     </div>
                   </div>
@@ -399,7 +425,7 @@ export default function HubClient({
         </section>
       )}
 
-      {/* Modal Edit Produk Toko */}
+      {/* Modal Edit Produk Toko (Bisa Ganti Foto & Auto-Kompres) */}
       {editingProduct && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
@@ -456,10 +482,43 @@ export default function HubClient({
                 <textarea
                   name="description"
                   defaultValue={editingProduct.description || ""}
-                  rows={3}
+                  rows={2}
                   className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                   placeholder="Keterangan kondisi bahan..."
                 />
+              </div>
+
+              {/* Upload & Kompres Foto Terbaru di Hub */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1 flex justify-between items-center">
+                  <span>Perbarui Foto Produk</span>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                    Auto-Kompres ⚡
+                  </span>
+                </label>
+                <input
+                  type="file"
+                  name="image"
+                  accept="image/*"
+                  onChange={handleEditImageChange}
+                  disabled={compressing}
+                  className="w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer disabled:opacity-50"
+                />
+                {compressing && (
+                  <p className="text-[11px] text-blue-600 mt-1">Mengompres foto...</p>
+                )}
+                {editPreview && !compressing && (
+                  <div className="mt-2 relative rounded-lg overflow-hidden border w-full h-28">
+                    <img
+                      src={editPreview}
+                      alt="Preview Baru"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded">
+                      Ukuran: {((editImage?.size || 0) / 1024).toFixed(0)} KB (Optimal)
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2 pt-2">
@@ -472,10 +531,10 @@ export default function HubClient({
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || compressing}
                   className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition cursor-pointer disabled:opacity-50"
                 >
-                  {loading ? "Menyimpan..." : "Simpan Perubahan"}
+                  {loading ? "Menyimpan..." : compressing ? "Mengompres..." : "Simpan Perubahan"}
                 </button>
               </div>
             </form>

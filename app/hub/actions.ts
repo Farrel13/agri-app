@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
+import { writeFile } from "fs/promises";
+import path from "path";
 
 // Verifikasi hasil panen petani oleh toko Hub
 export async function verifyProductAction(formData: FormData) {
@@ -40,7 +42,7 @@ export async function verifyProductAction(formData: FormData) {
   }
 }
 
-// Hub mengupdate harga / deskripsi / stok bahan yang dijual di tokonya
+// Hub mengupdate harga / deskripsi / stok / foto bahan yang dijual di tokonya
 export async function updateStoreProductAction(formData: FormData) {
   try {
     const session = await getServerSession(authOptions);
@@ -52,6 +54,7 @@ export async function updateStoreProductAction(formData: FormData) {
     const priceHub = Number(formData.get("priceHub"));
     const stock = Number(formData.get("stock"));
     const description = (formData.get("description") as string)?.trim() || null;
+    const file = formData.get("image") as File | null;
 
     if (!productId || isNaN(priceHub) || isNaN(stock)) {
       return { success: false, message: "Data tidak valid." };
@@ -66,12 +69,31 @@ export async function updateStoreProductAction(formData: FormData) {
       return { success: false, message: "Anda tidak berhak mengubah produk ini." };
     }
 
+    let newImageUrl: string | undefined = undefined;
+    let newExpiresAt: Date | undefined = undefined;
+
+    if (file && file.size > 0 && typeof file.arrayBuffer === "function") {
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const ext = path.extname(file.name) || ".jpg";
+      const filename = `hub-${Date.now()}-${Math.random().toString(36).substring(2, 7)}${ext}`;
+      const filePath = path.join(process.cwd(), "public", "uploads", filename);
+
+      await writeFile(filePath, buffer);
+      newImageUrl = `/uploads/${filename}`;
+      newExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 jam baru
+    }
+
     await prisma.product.update({
       where: { id: productId },
       data: {
         priceHub,
         stock,
         description,
+        ...(newImageUrl && {
+          imageUrl: newImageUrl,
+          imageExpiresAt: newExpiresAt,
+        }),
       },
     });
 

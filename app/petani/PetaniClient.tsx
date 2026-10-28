@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { addProductAction } from "./actions";
+import { compressImage } from "@/lib/compressImage";
 
 interface Product {
   id: string;
@@ -22,14 +23,26 @@ export default function PetaniClient({ products }: { products: Product[] }) {
   const [priceFarmer, setPriceFarmer] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedImage(file);
-      setPreviewUrl(URL.createObjectURL(file));
+      try {
+        setCompressing(true);
+        // Otomatis kompres gambar jika ukurannya besar
+        const compressed = await compressImage(file, 1200, 1200, 0.75);
+        setSelectedImage(compressed);
+        setPreviewUrl(URL.createObjectURL(compressed));
+      } catch (err) {
+        console.error("Gagal kompres gambar:", err);
+        setSelectedImage(file);
+        setPreviewUrl(URL.createObjectURL(file));
+      } finally {
+        setCompressing(false);
+      }
     }
   };
 
@@ -157,21 +170,27 @@ export default function PetaniClient({ products }: { products: Product[] }) {
               />
             </div>
 
-            {/* Input Foto Hasil Panen (Status 24 Jam) */}
+            {/* Input Foto Hasil Panen (Dengan Auto-Kompres) */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase mb-1 flex items-center justify-between">
                 <span>Foto Panen Terkini</span>
-                <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                  Aktif 24 Jam ⏱️
+                <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                  Auto-Kompres ⚡
                 </span>
               </label>
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
-                className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+                disabled={compressing}
+                className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer disabled:opacity-50"
               />
-              {previewUrl && (
+              {compressing && (
+                <p className="text-[11px] text-blue-600 mt-1 animate-pulse">
+                  Mengompres ukuran gambar...
+                </p>
+              )}
+              {previewUrl && !compressing && (
                 <div className="mt-2 relative rounded-lg overflow-hidden border border-emerald-300 w-full h-36">
                   <img
                     src={previewUrl}
@@ -188,16 +207,19 @@ export default function PetaniClient({ products }: { products: Product[] }) {
                   >
                     ✕ Batal
                   </button>
+                  <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded">
+                    Ukuran: {((selectedImage?.size || 0) / 1024).toFixed(0)} KB (Optimal)
+                  </div>
                 </div>
               )}
             </div>
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || compressing}
               className="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50 mt-2 cursor-pointer"
             >
-              {loading ? "Menyimpan..." : "Kirim ke Hub"}
+              {loading ? "Menyimpan..." : compressing ? "Mengompres Foto..." : "Kirim ke Hub"}
             </button>
           </form>
         </div>

@@ -28,11 +28,6 @@ export default function RestoranClient({ products }: { products: Product[] }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Pencarian komprehensif mencakup semua info di kartu:
-  // - Nama bahan baku
-  // - Nama toko pedagang (Hub)
-  // - Deskripsi bahan
-  // - Nama petani asal
   const filteredProducts = products.filter((p) => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
@@ -114,26 +109,42 @@ export default function RestoranClient({ products }: { products: Product[] }) {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Pemesanan Bahan Baku Restoran</h1>
-        <p className="text-gray-600">
-          Cari berdasarkan nama bahan, toko pedagang, deskripsi, atau asal petani. Klik nama toko untuk melihat halaman khusus toko tersebut.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Pemesanan Bahan Baku Restoran</h1>
+          <p className="text-gray-600 text-sm">
+            Beli bahan baku segar langsung dari Toko Hub pedagang terpercaya.
+          </p>
+        </div>
+        <Link
+          href="/restoran/pesanan"
+          className="bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 font-semibold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+        >
+          🧾 Lihat Riwayat Pesanan Resto ↗
+        </Link>
       </div>
 
       {message && (
         <div
-          className={`p-4 rounded-lg text-sm font-medium ${
+          className={`p-4 rounded-xl text-sm font-medium flex items-center justify-between ${
             message.type === "success"
               ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
               : "bg-red-50 text-red-800 border border-red-200"
           }`}
         >
-          {message.text}
+          <span>{message.text}</span>
+          {message.type === "success" && (
+            <Link
+              href="/restoran/pesanan"
+              className="text-xs font-bold underline text-emerald-700 hover:text-emerald-900 ml-3"
+            >
+              Buka Status Pesanan ➔
+            </Link>
+          )}
         </div>
       )}
 
-      {/* Kolom Pencarian Universal (Nama Bahan, Toko, Deskripsi, Petani) */}
+      {/* Kolom Pencarian Universal */}
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row items-center gap-3">
         <div className="relative flex-1 w-full">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
@@ -174,14 +185,13 @@ export default function RestoranClient({ products }: { products: Product[] }) {
             <span className="text-xs text-gray-500">{filteredProducts.length} bahan</span>
           </div>
 
-          {/* Kondisi Jika Pencarian Kosong */}
           {filteredProducts.length === 0 ? (
             <div className="bg-white p-12 rounded-2xl border border-dashed border-gray-300 text-center space-y-3">
               <div className="text-4xl">📦</div>
               <h3 className="font-bold text-gray-800 text-base">Bahan Baku Tidak Ditemukan</h3>
               <p className="text-gray-500 text-xs max-w-sm mx-auto">
                 {searchQuery
-                  ? `Tidak ada informasi (nama bahan, toko, atau deskripsi) yang cocok dengan "${searchQuery}".`
+                  ? `Tidak ada informasi yang cocok dengan "${searchQuery}".`
                   : "Belum ada bahan baku yang tersedia di pasar saat ini."}
               </p>
               {searchQuery && (
@@ -204,7 +214,6 @@ export default function RestoranClient({ products }: { products: Product[] }) {
                     key={item.id}
                     className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-md transition"
                   >
-                    {/* Foto Panen dengan status 24 jam */}
                     <div className="h-44 w-full bg-gray-100 relative">
                       {validImage ? (
                         <>
@@ -235,7 +244,6 @@ export default function RestoranClient({ products }: { products: Product[] }) {
                           </span>
                         </div>
 
-                        {/* Keterangan Deskripsi dari Hub */}
                         {item.description ? (
                           <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
                             <span className="font-semibold text-gray-700">Deskripsi:</span>{" "}
@@ -243,9 +251,7 @@ export default function RestoranClient({ products }: { products: Product[] }) {
                           </div>
                         ) : null}
 
-                        {/* Keterangan Toko Pedagang & Asal Petani */}
                         <div className="pt-2 border-t border-gray-100 text-xs space-y-1.5">
-                          {/* Nama Toko Pedagang yang diklik langsung menuju ke halaman toko */}
                           <div className="flex items-center gap-1.5 text-gray-600">
                             <span>🏪</span>
                             <span>
@@ -266,7 +272,6 @@ export default function RestoranClient({ products }: { products: Product[] }) {
                             </span>
                           </div>
 
-                          {/* Keterangan Petani */}
                           <div className="flex items-center gap-1.5 text-gray-600">
                             <span>🌱</span>
                             <span>
@@ -333,8 +338,7 @@ export default function RestoranClient({ products }: { products: Product[] }) {
                     <div className="flex-1">
                       <p className="font-medium text-sm text-gray-800">{item.product.name}</p>
                       <p className="text-[11px] text-gray-500">
-                        Toko: {item.product.verifiedBy?.name || "Pedagang"} • Dari:{" "}
-                        {item.product.user?.name || "Petani"}
+                        Toko: {item.product.verifiedBy?.name || "Pedagang"}
                       </p>
                       <p className="text-xs text-emerald-600 font-semibold">
                         Rp {((item.product.priceHub || 0) * item.quantity).toLocaleString("id-ID")}
@@ -374,6 +378,10 @@ export default function RestoranClient({ products }: { products: Product[] }) {
                   <span className="text-emerald-600">
                     Rp {totalAmount.toLocaleString("id-ID")}
                   </span>
+                </div>
+
+                <div className="text-[11px] text-gray-500 bg-gray-50 p-2.5 rounded-lg border">
+                  ⚡ <strong>Proses Instan:</strong> Begitu dipesan, uang langsung diverifikasi lunas & pesanan langsung beralih ke status pengiriman (estimasi ~1 jam).
                 </div>
 
                 <button
