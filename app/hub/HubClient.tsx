@@ -114,153 +114,125 @@ export default function HubClient({
   });
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 max-w-7xl mx-auto space-y-4 font-sans">
       {/* Header Dashboard Hub */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-gray-200 pb-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🏪</span>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Toko {hubUser.name} <span className="text-sm font-normal text-gray-500">(Hub Pedagang)</span>
-            </h1>
-          </div>
-          <p className="text-gray-600 text-sm mt-1">
-            Kelola verifikasi harian dari petani dan atur etalase bahan yang tokomu jual ke restoran.
+          <h1 className="text-xl font-bold text-gray-900">
+            Toko {hubUser.name} <span className="text-sm font-normal text-gray-500">(Hub Pedagang)</span>
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Verifikasi komoditas petani dan kelola etalase bahan untuk restoran mitra.
           </p>
         </div>
 
         {/* Tab Navigasi Halaman */}
-        <div className="flex bg-gray-100 p-1.5 rounded-xl border border-gray-200">
+        <div className="flex gap-2">
           <button
             onClick={() => setActiveTab("VERIFIKASI")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
+            className={`px-3 py-2 rounded-md text-xs font-medium transition cursor-pointer border ${
               activeTab === "VERIFIKASI"
-                ? "bg-white text-amber-700 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
             }`}
           >
-            <span>⏳ Antrean Masuk Petani</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-[10px] ${
-                activeTab === "VERIFIKASI"
-                  ? "bg-amber-100 text-amber-800"
-                  : "bg-gray-200 text-gray-600"
-              }`}
-            >
-              {unverifiedProducts.length}
-            </span>
+            Antrean Masuk ({unverifiedProducts.length})
           </button>
 
           <button
             onClick={() => setActiveTab("ETALASE")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
+            className={`px-3 py-2 rounded-md text-xs font-medium transition cursor-pointer border ${
               activeTab === "ETALASE"
-                ? "bg-white text-blue-700 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
             }`}
           >
-            <span>🛍️ Etalase Toko Saya</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-[10px] ${
-                activeTab === "ETALASE"
-                  ? "bg-blue-100 text-blue-800"
-                  : "bg-gray-200 text-gray-600"
-              }`}
-            >
-              {myStoreProducts.length}
-            </span>
+            Etalase Toko ({myStoreProducts.length})
           </button>
         </div>
       </div>
 
       {message && (
         <div
-          className={`p-4 rounded-lg text-sm font-medium ${
+          className={`p-4 rounded-md text-xs font-medium border ${
             message.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-              : "bg-red-50 text-red-800 border border-red-200"
+              ? "bg-white text-emerald-700 border-emerald-300"
+              : "bg-white text-rose-700 border-rose-300"
           }`}
         >
           {message.text}
         </div>
       )}
 
-      {/* ===================== TAB 1: VERIFIKASI BAHAN DARI PETANI ===================== */}
+      {/* TAB 1: VERIFIKASI BAHAN DARI PETANI */}
       {activeTab === "VERIFIKASI" && (
-        <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+        <section className="bg-white p-4 rounded-md border border-gray-200 space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <span>⏳ Verifikasi Bahan Masuk Per Hari</span>
+              <h2 className="text-base font-bold text-gray-900">
+                Verifikasi Bahan Masuk
               </h2>
               <p className="text-xs text-gray-500">
-                Pilih bahan panen petani untuk dimasukkan dan dijual di tokomu hari ini.
+                Pilih komoditas petani untuk dimasukkan dan dijual di tokomu hari ini.
               </p>
             </div>
-            <span className="text-xs bg-amber-50 text-amber-800 px-3 py-1 rounded-full border border-amber-200 font-semibold">
+            <span className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded font-medium">
               {unverifiedProducts.length} Menunggu Diproses
             </span>
           </div>
 
           {unverifiedProducts.length === 0 ? (
-            <div className="bg-gray-50 p-12 rounded-xl text-center border border-dashed border-gray-200">
-              <span className="text-3xl block mb-2">🎉</span>
+            <div className="bg-gray-50 p-8 rounded-md text-center border border-dashed border-gray-200">
               <p className="text-gray-500 text-sm font-medium">
-                Semua bahan panen petani sudah selesai diverifikasi hari ini!
+                Semua bahan panen petani sudah selesai diverifikasi hari ini.
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-gray-600">
-                <thead className="bg-gray-50 text-gray-700 uppercase font-semibold border-b text-xs">
+              <table className="w-full text-left text-xs text-gray-600">
+                <thead className="bg-gray-50 text-gray-700 font-medium border-b border-gray-200">
                   <tr>
-                    <th className="py-3 px-4">Foto Panen (24 Jam)</th>
-                    <th className="py-3 px-4">Bahan Baku</th>
-                    <th className="py-3 px-4">Asal Petani</th>
-                    <th className="py-3 px-4">Stok Panen</th>
-                    <th className="py-3 px-4">Harga Beli</th>
-                    <th className="py-3 px-4">Pengaturan Toko & Jual</th>
+                    <th className="py-2.5 px-3">Foto</th>
+                    <th className="py-2.5 px-3">Komoditas</th>
+                    <th className="py-2.5 px-3">Asal Petani</th>
+                    <th className="py-2.5 px-3">Stok Panen</th>
+                    <th className="py-2.5 px-3">Harga Beli Petani</th>
+                    <th className="py-2.5 px-3">Pengaturan Jual di Toko</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {unverifiedProducts.map((item) => {
                     const valid = isImageValid(item.imageUrl, item.imageExpiresAt);
                     return (
-                      <tr key={item.id} className="hover:bg-gray-50/80">
-                        <td className="py-3 px-4">
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="py-2.5 px-3">
                           {valid ? (
-                            <div className="relative w-12 h-12">
-                              <img
-                                src={item.imageUrl!}
-                                alt={item.name}
-                                className="w-12 h-12 rounded-lg object-cover border border-emerald-500 shadow-sm"
-                              />
-                              <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                              </span>
-                            </div>
+                            <img
+                              src={item.imageUrl!}
+                              alt={item.name}
+                              className="w-12 h-12 rounded object-cover border border-gray-200"
+                            />
                           ) : (
-                            <div className="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 text-xs text-center p-1 leading-tight">
+                            <div className="w-12 h-12 rounded bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 text-[10px] text-center p-1">
                               {item.imageUrl ? "Expired" : "No Foto"}
                             </div>
                           )}
                         </td>
-                        <td className="py-3 px-4 font-bold text-gray-900">{item.name}</td>
-                        <td className="py-3 px-4 text-emerald-700 font-medium">
-                          🌱 {item.user?.name || "Petani"}
+                        <td className="py-2.5 px-3 font-medium text-gray-900">{item.name}</td>
+                        <td className="py-2.5 px-3 text-gray-700">
+                          {item.user?.name || "Petani"}
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-2.5 px-3">
                           {item.stock} {item.unit}
                         </td>
-                        <td className="py-3 px-4 text-gray-500">
+                        <td className="py-2.5 px-3 text-gray-500">
                           Rp {item.priceFarmer.toLocaleString("id-ID")}
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-2.5 px-3">
                           <form onSubmit={handleVerify} className="flex gap-2 items-center flex-wrap">
                             <input type="hidden" name="productId" value={item.id} />
                             <div className="relative">
-                              <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-xs text-gray-400">
+                              <span className="absolute inset-y-0 left-0 pl-2 flex items-center text-xs text-gray-400">
                                 Rp
                               </span>
                               <input
@@ -269,21 +241,21 @@ export default function HubClient({
                                 placeholder="Harga Jual"
                                 required
                                 min={item.priceFarmer}
-                                className="w-32 pl-8 pr-2.5 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                className="w-28 pl-7 pr-2 py-1.5 border border-gray-300 rounded text-xs focus:border-emerald-500 outline-none"
                               />
                             </div>
                             <input
                               type="text"
                               name="description"
-                              placeholder="Deskripsi bahan (Opsional)"
-                              className="w-52 px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                              placeholder="Deskripsi komoditas (opsional)"
+                              className="w-48 px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:border-emerald-500 outline-none"
                             />
                             <button
                               type="submit"
                               disabled={loading}
-                              className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 transition cursor-pointer shadow-sm disabled:opacity-50"
+                              className="px-3 py-1.5 bg-emerald-600 text-white rounded text-xs font-medium hover:bg-emerald-700 transition cursor-pointer disabled:opacity-50"
                             >
-                              + Jual di Toko
+                              Jual di Toko
                             </button>
                           </form>
                         </td>
@@ -297,56 +269,52 @@ export default function HubClient({
         </section>
       )}
 
-      {/* ===================== TAB 2: ETALASE TOKO PEDAGANG ===================== */}
+      {/* TAB 2: ETALASE TOKO PEDAGANG */}
       {activeTab === "ETALASE" && (
-        <section className="space-y-6">
-          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <section className="space-y-4">
+          <div className="bg-white p-4 rounded-md border border-gray-200 flex flex-col md:flex-row items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">
+              <h2 className="text-base font-bold text-gray-900">
                 Katalog Etalase Toko {hubUser.name}
               </h2>
               <p className="text-xs text-gray-500">
-                Tampilan bahan yang saat ini dilihat dan dapat dibeli oleh Restoran dari tokomu.
+                Komoditas yang aktif dijual dan dapat dipesan oleh restoran mitra.
               </p>
             </div>
 
-            <div className="relative w-full md:w-80">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                🔍
-              </span>
+            <div className="w-full md:w-72">
               <input
                 type="text"
                 value={searchMyStore}
                 onChange={(e) => setSearchMyStore(e.target.value)}
-                placeholder="Cari bahan di tokomu..."
-                className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                placeholder="Cari komoditas toko..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs outline-none focus:border-emerald-500"
               />
             </div>
           </div>
 
           {filteredMyStore.length === 0 ? (
-            <div className="bg-white p-12 rounded-2xl border border-dashed text-center text-gray-500 space-y-2">
-              <span className="text-3xl block">📦</span>
-              <p className="font-semibold text-gray-800">
+            <div className="bg-white p-8 rounded-md border border-dashed border-gray-200 text-center text-gray-500 space-y-1">
+              <p className="font-medium text-gray-800 text-sm">
                 {searchMyStore
-                  ? `Tidak ada bahan di tokomu dengan nama "${searchMyStore}"`
-                  : "Tokomu belum memverifikasi bahan panen apa pun untuk dijual."}
+                  ? `Tidak ada komoditas dengan nama "${searchMyStore}"`
+                  : "Belum ada komoditas yang diverifikasi untuk dijual."}
               </p>
               <p className="text-xs text-gray-400">
-                Buka tab &quot;Antrean Masuk Petani&quot; untuk menambahkan bahan panen ke tokomu.
+                Periksa tab antrean masuk untuk menambahkan bahan panen ke etalase.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {filteredMyStore.map((item) => {
                 const validImage = isImageValid(item.imageUrl, item.imageExpiresAt);
 
                 return (
                   <div
                     key={item.id}
-                    className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between"
+                    className="bg-white border border-gray-200 rounded-md overflow-hidden flex flex-col justify-between"
                   >
-                    <div className="h-44 w-full bg-gray-100 relative">
+                    <div className="h-40 w-full bg-gray-100 relative">
                       {validImage ? (
                         <>
                           <img
@@ -354,53 +322,46 @@ export default function HubClient({
                             alt={item.name}
                             className="w-full h-full object-cover"
                           />
-                          <div className="absolute top-2 left-2 bg-emerald-600/90 text-white text-[11px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm shadow flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-200 animate-pulse"></span>
-                            Live Update Panen (&lt;24 Jam)
+                          <div className="absolute top-2 left-2 bg-gray-900/70 text-white text-[10px] font-medium px-2 py-0.5 rounded">
+                            Update &lt;24 Jam
                           </div>
                         </>
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 text-xs bg-gray-50">
-                          <span className="text-2xl mb-1">📷</span>
-                          <span>Foto panen telah kadaluarsa / terhapus</span>
+                          <span>Foto kadaluarsa</span>
                         </div>
                       )}
                     </div>
 
-                    <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
+                    <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="space-y-2">
                         <div className="flex justify-between items-start gap-2">
-                          <h3 className="font-bold text-gray-900 text-base">{item.name}</h3>
-                          <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2 py-0.5 rounded shrink-0">
+                          <h3 className="font-bold text-gray-900 text-sm">{item.name}</h3>
+                          <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded shrink-0">
                             Stok: {item.stock} {item.unit}
                           </span>
                         </div>
 
                         {item.description ? (
-                          <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
-                            <span className="font-semibold text-gray-700">Deskripsi:</span>{" "}
+                          <p className="text-xs text-gray-600 line-clamp-2">
                             {item.description}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-gray-400 italic">
-                            Tanpa deskripsi produk
-                          </div>
-                        )}
+                          </p>
+                        ) : null}
 
-                        <div className="pt-2 border-t text-xs space-y-1">
+                        <div className="pt-2 border-t border-gray-100 text-xs space-y-1">
                           <div className="text-gray-500">
-                            Asal Petani:{" "}
-                            <strong className="text-emerald-700">
+                            Petani:{" "}
+                            <span className="text-gray-800 font-medium">
                               {item.user?.name || "Mitra Tani"}
-                            </strong>
+                            </span>
                           </div>
                           <div className="text-gray-500">
-                            Harga Beli dari Petani:{" "}
-                            <strong>Rp {item.priceFarmer.toLocaleString("id-ID")}</strong>
+                            Harga Beli:{" "}
+                            <span>Rp {item.priceFarmer.toLocaleString("id-ID")}</span>
                           </div>
                         </div>
 
-                        <p className="text-emerald-600 font-bold text-lg pt-1">
+                        <p className="text-emerald-600 font-bold text-base pt-1">
                           Rp {(item.priceHub || 0).toLocaleString("id-ID")}{" "}
                           <span className="text-xs font-normal text-gray-500">/ {item.unit}</span>
                         </p>
@@ -412,9 +373,9 @@ export default function HubClient({
                           setEditImage(null);
                           setEditPreview(null);
                         }}
-                        className="w-full py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 rounded-xl text-xs font-semibold transition cursor-pointer mt-2"
+                        className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-md text-xs font-medium transition cursor-pointer"
                       >
-                        ✏️ Edit Harga, Stok & Foto Toko
+                        Edit Harga, Stok, dan Foto
                       </button>
                     </div>
                   </div>
@@ -425,13 +386,13 @@ export default function HubClient({
         </section>
       )}
 
-      {/* Modal Edit Produk Toko (Bisa Ganti Foto & Auto-Kompres) */}
+      {/* Modal Edit Produk Toko */}
       {editingProduct && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-bold text-gray-900 text-base">
-                Edit Bahan: {editingProduct.name}
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-md p-5 max-w-md w-full border border-gray-200 space-y-4">
+            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+              <h3 className="font-bold text-gray-900 text-sm">
+                Edit: {editingProduct.name}
               </h3>
               <button
                 onClick={() => setEditingProduct(null)}
@@ -441,11 +402,11 @@ export default function HubClient({
               </button>
             </div>
 
-            <form onSubmit={handleUpdateStore} className="space-y-4 text-sm">
+            <form onSubmit={handleUpdateStore} className="space-y-3 text-xs">
               <input type="hidden" name="productId" value={editingProduct.id} />
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block font-medium text-gray-700 mb-1">
                   Harga Jual Toko (Rp / {editingProduct.unit})
                 </label>
                 <input
@@ -454,15 +415,15 @@ export default function HubClient({
                   defaultValue={editingProduct.priceHub || editingProduct.priceFarmer}
                   min={editingProduct.priceFarmer}
                   required
-                  className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-md p-2 outline-none focus:border-emerald-500"
                 />
-                <span className="text-[11px] text-gray-400 mt-0.5 block">
+                <span className="text-[10px] text-gray-400 mt-0.5 block">
                   Harga beli modal: Rp {editingProduct.priceFarmer.toLocaleString("id-ID")}
                 </span>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block font-medium text-gray-700 mb-1">
                   Jumlah Stok Tersedia ({editingProduct.unit})
                 </label>
                 <input
@@ -471,30 +432,27 @@ export default function HubClient({
                   defaultValue={editingProduct.stock}
                   min="0"
                   required
-                  className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-md p-2 outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block font-medium text-gray-700 mb-1">
                   Keterangan Deskripsi (Opsional)
                 </label>
                 <textarea
                   name="description"
                   defaultValue={editingProduct.description || ""}
                   rows={2}
-                  className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-xs"
-                  placeholder="Keterangan kondisi bahan..."
+                  className="w-full border border-gray-300 rounded-md p-2 outline-none focus:border-emerald-500 text-xs"
+                  placeholder="Keterangan kondisi komoditas..."
                 />
               </div>
 
-              {/* Upload & Kompres Foto Terbaru di Hub */}
+              {/* Upload Foto */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1 flex justify-between items-center">
-                  <span>Perbarui Foto Produk</span>
-                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                    Auto-Kompres ⚡
-                  </span>
+                <label className="block font-medium text-gray-700 mb-1">
+                  Perbarui Foto Komoditas
                 </label>
                 <input
                   type="file"
@@ -502,21 +460,18 @@ export default function HubClient({
                   accept="image/*"
                   onChange={handleEditImageChange}
                   disabled={compressing}
-                  className="w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer disabled:opacity-50"
+                  className="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer disabled:opacity-50"
                 />
                 {compressing && (
-                  <p className="text-[11px] text-blue-600 mt-1">Mengompres foto...</p>
+                  <p className="text-[10px] text-gray-500 mt-1">Mengompres foto...</p>
                 )}
                 {editPreview && !compressing && (
-                  <div className="mt-2 relative rounded-lg overflow-hidden border w-full h-28">
+                  <div className="mt-2 relative rounded overflow-hidden border border-gray-200 w-full h-24">
                     <img
                       src={editPreview}
                       alt="Preview Baru"
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded">
-                      Ukuran: {((editImage?.size || 0) / 1024).toFixed(0)} KB (Optimal)
-                    </div>
                   </div>
                 )}
               </div>
@@ -525,14 +480,14 @@ export default function HubClient({
                 <button
                   type="button"
                   onClick={() => setEditingProduct(null)}
-                  className="flex-1 py-2.5 rounded-lg border text-gray-700 font-semibold hover:bg-gray-50 transition cursor-pointer"
+                  className="flex-1 py-2 rounded-md border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={loading || compressing}
-                  className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-2 rounded-md bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition cursor-pointer disabled:opacity-50"
                 >
                   {loading ? "Menyimpan..." : compressing ? "Mengompres..." : "Simpan Perubahan"}
                 </button>

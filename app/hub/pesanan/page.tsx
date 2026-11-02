@@ -18,7 +18,7 @@ export default async function HubPesananPage() {
   }
 
   // Ambil semua order yang masuk ke toko Hub ini
-  const orders = await prisma.order.findMany({
+  const rawOrders = await prisma.order.findMany({
     where: { hubId: session.user.id },
     include: {
       buyer: { select: { id: true, name: true, email: true } },
@@ -27,7 +27,12 @@ export default async function HubPesananPage() {
       items: {
         include: {
           product: {
-            select: { id: true, name: true, unit: true },
+            select: {
+              id: true,
+              name: true,
+              unit: true,
+              priceFarmer: true,
+            },
           },
         },
       },
@@ -35,5 +40,49 @@ export default async function HubPesananPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  return <HubPesananClient initialOrders={orders} />;
+  // Hitung Laba Rugi / Margin Hub
+  let totalRevenue = 0; // Total uang penjualan bahan
+  let totalFarmerCost = 0; // Modal yang harus diserahkan ke petani
+  let completedOrdersCount = 0;
+
+  const orders = rawOrders.map((ord) => {
+    let orderCost = 0;
+    let orderRevenue = 0;
+
+    for (const it of ord.items) {
+      orderRevenue += it.subtotal;
+      orderCost += it.quantity * (it.product?.priceFarmer || 0);
+    }
+
+    const orderProfit = orderRevenue - orderCost;
+
+    if (ord.status !== "DIBATALKAN" && ord.payment?.status === "LUNAS") {
+      totalRevenue += orderRevenue;
+      totalFarmerCost += orderCost;
+    }
+
+    if (ord.status === "SELESAI") {
+      completedOrdersCount++;
+    }
+
+    return {
+      ...ord,
+      orderCost,
+      orderProfit,
+    };
+  });
+
+  const netProfit = totalRevenue - totalFarmerCost;
+  const profitMarginPercent = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+  const financialStats = {
+    totalOrders: orders.length,
+    completedOrdersCount,
+    totalRevenue,
+    totalFarmerCost,
+    netProfit,
+    profitMarginPercent: Math.round(profitMarginPercent * 10) / 10,
+  };
+
+  return <HubPesananClient initialOrders={orders} financialStats={financialStats} />;
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { completeOrderAction, createProductReviewAction } from "./actions";
+import { simulatePaymentAction } from "../actions";
 import { compressImage } from "@/lib/compressImage";
 
 interface OrderItem {
@@ -26,6 +27,10 @@ interface OrderData {
   deliveryFee: number;
   finalAmount: number;
   notes?: string | null;
+  courierName?: string | null;
+  courierPhone?: string | null;
+  vehicleNumber?: string | null;
+  estimatedArrival?: string | null;
   receivedImageUrl?: string | null;
   receivedImageExpiresAt?: Date | string | null;
   receivedNotes?: string | null;
@@ -38,6 +43,7 @@ interface OrderData {
     phoneNumber: string;
     street: string;
     city: string;
+    province?: string;
   } | null;
   payment?: {
     method: string;
@@ -49,7 +55,15 @@ interface OrderData {
 
 export default function PesananRestoranClient({ initialOrders }: { initialOrders: any[] }) {
   const [orders, setOrders] = useState<OrderData[]>(initialOrders);
-  
+
+  // State Modal Pembayaran (Mock Payment Gateway)
+  const [payingOrder, setPayingOrder] = useState<OrderData | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"QRIS" | "TRANSFER_BANK" | "E_WALLET">("QRIS");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  // State Modal Cetak Invoice
+  const [invoiceOrder, setInvoiceOrder] = useState<OrderData | null>(null);
+
   // State Modal Selesai & Upload Foto Penerimaan
   const [completingOrder, setCompletingOrder] = useState<OrderData | null>(null);
   const [receiveImage, setReceiveImage] = useState<File | null>(null);
@@ -60,6 +74,7 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
 
   // State Modal Review
   const [reviewingProductId, setReviewingProductId] = useState<string | null>(null);
+  const [reviewingProductName, setReviewingProductName] = useState<string>("");
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
@@ -74,33 +89,87 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "MENUNGGU_PEMBAYARAN":
-        return <span className="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold">Menunggu Pembayaran</span>;
+        return (
+          <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">
+            Menunggu Pembayaran
+          </span>
+        );
       case "DIPROSES_HUB":
-        return <span className="bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full text-xs font-semibold">Sedang Dipersiapkan Hub</span>;
+        return (
+          <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">
+            Diproses Hub
+          </span>
+        );
       case "DIKIRIM":
         return (
-          <span className="bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-            <span className="animate-pulse">🚚</span> Dalam Pengiriman (Estimasi ~1 Jam)
+          <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">
+            Dalam Pengiriman
           </span>
         );
       case "SELESAI":
-        return <span className="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full text-xs font-semibold">✓ Barang Diterima & Selesai</span>;
+        return (
+          <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">
+            Selesai
+          </span>
+        );
+      case "DIBATALKAN":
+        return (
+          <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">
+            Dibatalkan
+          </span>
+        );
       default:
-        return <span className="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full text-xs font-semibold">{status}</span>;
+        return (
+          <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">
+            {status}
+          </span>
+        );
     }
   };
 
+  // Handler Simulasi Bayar
+  const handlePayOrder = async () => {
+    if (!payingOrder) return;
+    setIsProcessingPayment(true);
+    setMsg(null);
+
+    const res = await simulatePaymentAction(payingOrder.id, paymentMethod);
+    setIsProcessingPayment(false);
+
+    if (res.success) {
+      setMsg({ text: res.message, success: true });
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === payingOrder.id
+            ? {
+                ...o,
+                status: "DIPROSES_HUB",
+                payment: {
+                  method: paymentMethod,
+                  status: "LUNAS",
+                  amount: o.finalAmount,
+                },
+              }
+            : o
+        )
+      );
+      setPayingOrder(null);
+    } else {
+      setMsg({ text: res.message, success: false });
+    }
+  };
+
+  // Handler Kompresi Foto Bukti Terima
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       try {
         setCompressing(true);
-        // Otomatis kompres foto barang yang diterima
         const compressed = await compressImage(file, 1200, 1200, 0.75);
         setReceiveImage(compressed);
         setReceivePreview(URL.createObjectURL(compressed));
       } catch (err) {
-        console.error("Gagal kompres foto penerimaan:", err);
+        console.error("Gagal kompres:", err);
         setReceiveImage(file);
         setReceivePreview(URL.createObjectURL(file));
       } finally {
@@ -109,11 +178,14 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
     }
   };
 
-  const handleCompleteSubmit = async (e: React.FormEvent) => {
+  // Handler Konfirmasi Penerimaan Barang
+  const handleConfirmReceived = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!completingOrder) return;
 
     setSubmittingComplete(true);
+    setMsg(null);
+
     const formData = new FormData();
     formData.append("orderId", completingOrder.id);
     formData.append("notes", receiveNotes);
@@ -126,18 +198,9 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
 
     if (res.success) {
       setMsg({ text: res.message, success: true });
-      // Update state order lokal
       setOrders((prev) =>
         prev.map((o) =>
-          o.id === completingOrder.id
-            ? {
-                ...o,
-                status: "SELESAI",
-                receivedImageUrl: receivePreview,
-                receivedNotes: receiveNotes,
-                receivedAt: new Date().toISOString(),
-              }
-            : o
+          o.id === completingOrder.id ? { ...o, status: "SELESAI", receivedAt: new Date() } : o
         )
       );
       setCompletingOrder(null);
@@ -149,7 +212,8 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
     }
   };
 
-  const handleReviewSubmit = async (e: React.FormEvent) => {
+  // Handler Review
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewingProductId) return;
 
@@ -166,34 +230,38 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
       setMsg({ text: res.message, success: true });
       setReviewingProductId(null);
       setComment("");
+      setRating(5);
     } else {
-      alert(res.message);
+      setMsg({ text: res.message, success: false });
     }
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="p-4 max-w-7xl mx-auto space-y-4 font-sans">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Riwayat Pesanan Restoran</h1>
-          <p className="text-sm text-gray-500">
-            Daftar pesanan bahan baku dari Toko Hub. Cek status perjalanan dan konfirmasi penerimaan barang.
+          <h1 className="text-xl font-bold text-slate-900">
+            Riwayat Pesanan Restoran
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Pantau status pesanan, pembayaran, dan pengiriman.
           </p>
         </div>
+
         <Link
           href="/restoran"
-          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition cursor-pointer"
+          className="px-4 py-2 bg-emerald-600 text-white font-medium rounded-md text-xs hover:bg-emerald-700"
         >
-          + Belanja Bahan Lagi
+          Kembali Belanja
         </Link>
       </div>
 
       {msg && (
         <div
-          className={`p-4 rounded-xl text-sm font-medium border ${
+          className={`p-4 rounded-md text-xs font-medium border ${
             msg.success
-              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-              : "bg-red-50 text-red-800 border-red-200"
+              ? "bg-white text-emerald-800 border-emerald-300"
+              : "bg-white text-red-800 border-red-300"
           }`}
         >
           {msg.text}
@@ -201,163 +269,158 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
       )}
 
       {orders.length === 0 ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-dashed border-gray-300 space-y-3">
-          <div className="text-4xl">🧾</div>
-          <h3 className="font-bold text-gray-800">Belum Ada Transaksi Pesanan</h3>
-          <p className="text-xs text-gray-500 max-w-sm mx-auto">
-            Semua pesanan bahan baku yang kamu checkout di etalase toko akan otomatis tercatat dan diproses di sini.
-          </p>
-          <Link
-            href="/restoran"
-            className="inline-block px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700"
-          >
-            Buka Katalog Restoran
-          </Link>
+        <div className="bg-white p-4 text-center rounded-md border border-gray-200">
+          <p className="font-medium text-slate-700 mt-2">Belum ada riwayat pesanan</p>
+          <p className="text-xs text-slate-400 mt-1">Pilih komoditas di katalog bahan restoran.</p>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-3">
           {orders.map((ord) => {
-            const hasValidReceivedPhoto = isImageValid(ord.receivedImageUrl, ord.receivedImageExpiresAt);
+            const isDelivering = ord.status === "DIKIRIM";
+            const isCompleted = ord.status === "SELESAI";
+            const isWaitingPayment = ord.status === "MENUNGGU_PEMBAYARAN";
+            const hasCourier = ord.courierName || ord.vehicleNumber;
 
             return (
               <div
                 key={ord.id}
-                className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4 hover:shadow-md transition"
+                className="bg-white rounded-md border border-gray-200 overflow-hidden p-4 space-y-3"
               >
-                {/* Header Card Order */}
-                <div className="flex flex-wrap justify-between items-center gap-3 border-b border-gray-100 pb-4">
+                {/* Header Kartu Pesanan */}
+                <div className="flex flex-wrap justify-between items-center gap-2 border-b border-gray-200 pb-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-gray-900 text-base">#{ord.orderNumber}</span>
+                      <span className="font-bold text-slate-900 text-sm">#{ord.orderNumber}</span>
                       {getStatusBadge(ord.status)}
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      Diproses oleh <strong>{ord.hub.name}</strong> •{" "}
-                      {new Date(ord.createdAt).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </div>
+                    <span className="text-xs text-slate-400">
+                      Dibuat: {new Date(ord.createdAt).toLocaleString("id-ID")}
+                    </span>
                   </div>
 
-                  {/* Status Pembayaran & Tombol Konfirmasi Selesai */}
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <span
-                        className={`inline-block px-2.5 py-1 rounded text-xs font-bold ${
-                          ord.payment?.status === "LUNAS"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-amber-100 text-amber-800"
-                        }`}
-                      >
-                        💳 {ord.payment?.status || "LUNAS"} ({ord.payment?.method || "TRANSFER"})
-                      </span>
-                    </div>
+                  <div className="text-right flex items-center gap-2">
+                    <button
+                      onClick={() => setInvoiceOrder(ord)}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-slate-700 font-medium rounded-md text-xs cursor-pointer"
+                    >
+                      Cetak Nota
+                    </button>
 
-                    {/* Tombol Penyelesaian Jika Sedang Dikirim */}
-                    {ord.status === "DIKIRIM" && (
+                    {isWaitingPayment && (
                       <button
                         onClick={() => {
-                          setCompletingOrder(ord);
-                          setReceiveImage(null);
-                          setReceivePreview(null);
-                          setReceiveNotes("");
+                          setPayingOrder(ord);
+                          setPaymentMethod((ord.payment?.method as any) || "QRIS");
                         }}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition shadow-sm cursor-pointer flex items-center gap-1.5"
+                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-md text-xs cursor-pointer"
                       >
-                        📦 Barang Diterima (Selesai)
+                        Bayar Sekarang
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Banner Bukti Penerimaan Barang jika Pesanan Sudah Selesai */}
-                {ord.status === "SELESAI" && (
-                  <div className="bg-emerald-50/70 border border-emerald-200 p-3.5 rounded-xl flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      {hasValidReceivedPhoto ? (
-                        <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-emerald-400 shrink-0">
-                          <img
-                            src={ord.receivedImageUrl!}
-                            alt="Bukti Penerimaan"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-xl border">
-                          ✅
-                        </div>
-                      )}
+                {/* Info Toko Hub & Alamat */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs bg-white p-3 rounded-md border border-gray-200">
+                  <div>
+                    <span className="text-slate-400 text-xs font-medium block">
+                      Toko Hub Pemasok
+                    </span>
+                    <p className="font-medium text-slate-800 text-sm mt-0.5">{ord.hub.name}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">
+                      Metode Bayar:{" "}
+                      <strong className="text-slate-700 font-mono">
+                        {ord.payment?.method || "TRANSFER"} ({ord.payment?.status || "PENDING"})
+                      </strong>
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-400 text-xs font-medium block">
+                      Alamat Tujuan Restoran
+                    </span>
+                    <p className="font-medium text-slate-800 mt-0.5">
+                      {ord.deliveryAddress?.label || "Dapur Restoran"}
+                    </p>
+                    <p className="text-slate-500 text-xs">
+                      {ord.deliveryAddress?.street}, {ord.deliveryAddress?.city}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Info Kurir & Pelacakan Armada Hub jika ada */}
+                {hasCourier && (
+                  <div className="p-3 bg-white border border-gray-200 rounded-md text-xs space-y-1">
+                    <span className="font-medium text-slate-900 block">
+                      Armada Pengantaran Hub:
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-slate-600 pt-1">
                       <div>
-                        <div className="text-xs font-bold text-emerald-900">
-                          Konfirmasi Penerimaan Barang Berhasil
-                        </div>
-                        <div className="text-[11px] text-emerald-700">
-                          Catatan Resto: {ord.receivedNotes || "Bahan diterima lengkap & segar."}
-                        </div>
-                        {hasValidReceivedPhoto && (
-                          <div className="text-[10px] text-emerald-600 mt-0.5">
-                            ⏱️ Foto bukti penerimaan aktif selama 24 jam
-                          </div>
-                        )}
+                        Kurir: <strong>{ord.courierName || "-"}</strong>
+                      </div>
+                      <div>
+                        No. HP: <strong>{ord.courierPhone || "-"}</strong>
+                      </div>
+                      <div>
+                        Plat: <strong>{ord.vehicleNumber || "-"}</strong>
+                      </div>
+                      <div>
+                        Estimasi Tiba: <strong>{ord.estimatedArrival || "~45 Menit"}</strong>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Rincian Order Items */}
-                <div className="divide-y divide-gray-100">
+                {/* Rincian Produk Pesanan */}
+                <div className="divide-y divide-gray-200">
                   {ord.items.map((it) => (
-                    <div key={it.id} className="py-2.5 flex justify-between items-center text-sm">
+                    <div key={it.id} className="py-2.5 flex items-center justify-between text-xs">
                       <div>
-                        <span className="font-semibold text-gray-800">{it.product.name}</span>
-                        <span className="text-gray-500 text-xs ml-2">
-                          x {it.quantity} {it.product.unit} @ Rp {it.pricePerUnit.toLocaleString("id-ID")}
-                        </span>
+                        <p className="font-medium text-slate-900">{it.product.name}</p>
+                        <p className="text-slate-500 text-xs">
+                          {it.quantity} {it.product.unit} × Rp {it.pricePerUnit.toLocaleString("id-ID")}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <span className="font-medium text-gray-900">
+
+                      <div className="flex items-center gap-3">
+                        <span className="font-medium text-slate-800">
                           Rp {it.subtotal.toLocaleString("id-ID")}
                         </span>
-                        <button
-                          onClick={() => setReviewingProductId(it.product.id)}
-                          className="text-xs text-blue-600 hover:text-blue-800 font-medium underline cursor-pointer"
-                        >
-                          Beri Ulasan ⭐
-                        </button>
+                        {isCompleted && (
+                          <button
+                            onClick={() => {
+                              setReviewingProductId(it.product.id);
+                              setReviewingProductName(it.product.name);
+                            }}
+                            className="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-slate-700 rounded-md font-medium border border-gray-200"
+                          >
+                            Beri Nilai
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Footer Total & Lokasi Pengantaran */}
-                <div className="bg-gray-50 p-4 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 text-xs text-gray-600 border border-gray-100">
-                  <div>
-                    <span className="font-semibold text-gray-800">📍 Lokasi Antar: </span>
-                    {ord.deliveryAddress ? (
-                      <span>
-                        {ord.deliveryAddress.label} - {ord.deliveryAddress.street},{" "}
-                        {ord.deliveryAddress.city}
-                      </span>
-                    ) : (
-                      <span>Dapur Restoran Utama</span>
-                    )}
-                    {ord.notes && (
-                      <div className="text-gray-500 italic mt-0.5">Catatan: &ldquo;{ord.notes}&rdquo;</div>
-                    )}
+                {/* Footer Total & Tombol Terima Barang */}
+                <div className="flex flex-wrap justify-between items-center gap-3 border-t border-gray-200 pt-3">
+                  <div className="text-xs text-slate-500">
+                    <span>
+                      Ongkir: Rp {ord.deliveryFee.toLocaleString("id-ID")} | Total:{" "}
+                    </span>
+                    <strong className="text-sm text-emerald-700 font-bold">
+                      Rp {ord.finalAmount.toLocaleString("id-ID")}
+                    </strong>
                   </div>
 
-                  <div className="text-right">
-                    <div className="text-gray-500">
-                      Ongkir: Rp {ord.deliveryFee.toLocaleString("id-ID")}
-                    </div>
-                    <div className="text-base font-bold text-emerald-700">
-                      Total: Rp {ord.finalAmount.toLocaleString("id-ID")}
-                    </div>
-                  </div>
+                  {isDelivering && (
+                    <button
+                      onClick={() => setCompletingOrder(ord)}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-md text-xs cursor-pointer"
+                    >
+                      Konfirmasi Barang Diterima
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -365,85 +428,291 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
         </div>
       )}
 
-      {/* Modal Konfirmasi Penerimaan Barang & Upload Foto 24 Jam */}
-      {completingOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-bold text-gray-900 text-base">
-                Konfirmasi Penerimaan Barang #{completingOrder.orderNumber}
-              </h3>
+      {/* Modal Simulasi Pembayaran (Payment Gateway Sandbox) */}
+      {payingOrder && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-gray-200 w-full max-w-md p-4 space-y-4">
+            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">
+                  Simulasi Pembayaran
+                </h3>
+                <span className="text-xs text-slate-500 font-medium">
+                  Sandbox
+                </span>
+              </div>
               <button
-                onClick={() => setCompletingOrder(null)}
-                className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                onClick={() => setPayingOrder(null)}
+                className="text-slate-400 hover:text-slate-600 font-medium"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCompleteSubmit} className="space-y-4">
-              <p className="text-xs text-gray-500">
-                Apakah semua bahan pesanan sudah kamu terima dari kurir Hub dalam kondisi baik?
-              </p>
+            <div className="bg-white p-4 rounded-md border border-gray-200 space-y-2 text-xs">
+              <div className="flex justify-between text-slate-600">
+                <span>Nomor Pesanan:</span>
+                <span className="font-mono font-medium text-slate-800">#{payingOrder.orderNumber}</span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>Toko Hub Tujuan:</span>
+                <span className="font-medium text-slate-800">{payingOrder.hub.name}</span>
+              </div>
+              <div className="flex justify-between text-slate-900 font-bold text-sm pt-2 border-t border-gray-200">
+                <span>Total Tagihan:</span>
+                <span className="text-emerald-700">Rp {payingOrder.finalAmount.toLocaleString("id-ID")}</span>
+              </div>
+            </div>
+
+            {/* Pilihan Metode Bayar */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Pilih Saluran Pembayaran:</label>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                {(["QRIS", "TRANSFER_BANK", "E_WALLET"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setPaymentMethod(m)}
+                    className={`py-2 rounded-md font-medium border text-center ${
+                      paymentMethod === m
+                        ? "bg-white border-emerald-600 text-emerald-700"
+                        : "bg-white border-gray-200 text-slate-600"
+                    }`}
+                  >
+                    {m === "QRIS" ? "QRIS" : m === "TRANSFER_BANK" ? "Bank VA" : "E-Wallet"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tampilan Visual Mockup */}
+            <div className="p-4 bg-white rounded-md border border-gray-200 text-center space-y-2">
+              {paymentMethod === "QRIS" && (
+                <div className="space-y-1">
+                  <div className="w-32 h-32 mx-auto bg-white p-2 rounded-md border border-gray-200 flex items-center justify-center font-mono text-xs text-slate-500">
+                    [ QRIS CODE ]
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    Scan QRIS via BCA, GoPay, OVO, atau ShopeePay
+                  </p>
+                </div>
+              )}
+              {paymentMethod === "TRANSFER_BANK" && (
+                <div className="space-y-1 text-xs">
+                  <span className="text-slate-500 text-xs">Virtual Account BCA (Simulasi)</span>
+                  <p className="font-mono text-sm font-bold text-slate-900">
+                    8801 2026 {payingOrder.orderNumber.slice(-4)}
+                  </p>
+                </div>
+              )}
+              {paymentMethod === "E_WALLET" && (
+                <p className="text-xs text-slate-600">
+                  Notifikasi push pembayaran akan dialihkan ke aplikasi E-Wallet Anda.
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => setPayingOrder(null)}
+                className="flex-1 py-2 text-xs font-medium text-slate-600 bg-gray-100 rounded-md"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handlePayOrder}
+                disabled={isProcessingPayment}
+                className="flex-2 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md disabled:opacity-50"
+              >
+                {isProcessingPayment ? "Memverifikasi..." : "Simulasi Bayar Berhasil (Sandbox)"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Cetak Invoice / Nota Digital */}
+      {invoiceOrder && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-gray-200 w-full max-w-xl p-4 space-y-4 max-h-[95vh] overflow-y-auto print:p-0 print:border-0">
+            {/* Header Nota */}
+            <div className="flex justify-between items-start border-b border-gray-200 pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">AgriApp Indonesia</h2>
+                <p className="text-xs text-slate-500">Nota Transaksi Pengiriman</p>
+              </div>
+
+              <div className="text-right">
+                <p className="font-mono font-bold text-slate-900 text-sm">
+                  #{invoiceOrder.orderNumber}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {new Date(invoiceOrder.createdAt).toLocaleDateString("id-ID", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+                <span className="inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-slate-700">
+                  Status: {invoiceOrder.payment?.status || "LUNAS"}
+                </span>
+              </div>
+            </div>
+
+            {/* Info Pembeli & Penjual */}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-slate-400 font-medium block text-xs">
+                  Penyedia (Toko Hub)
+                </span>
+                <p className="font-medium text-slate-800 mt-1">{invoiceOrder.hub.name}</p>
+                <p className="text-slate-500 text-xs">Mitra Pengumpul AgriApp</p>
+              </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1 flex justify-between items-center">
-                  <span>Foto Bukti Fisik Penerimaan</span>
-                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                    Auto-Kompres ⚡ (24 Jam)
-                  </span>
+                <span className="text-slate-400 font-medium block text-xs">
+                  Penerima (Restoran)
+                </span>
+                <p className="font-medium text-slate-800 mt-1">
+                  {invoiceOrder.deliveryAddress?.recipientName || "Restoran"}
+                </p>
+                <p className="text-slate-500 text-xs">
+                  {invoiceOrder.deliveryAddress?.street}, {invoiceOrder.deliveryAddress?.city}
+                </p>
+                <p className="text-slate-500 text-xs">
+                  Telp: {invoiceOrder.deliveryAddress?.phoneNumber}
+                </p>
+              </div>
+            </div>
+
+            {/* Tabel Item */}
+            <div className="border border-gray-200 rounded-md overflow-hidden">
+              <table className="w-full text-xs text-left">
+                <thead className="border-b border-gray-200">
+                  <tr>
+                    <th className="p-2.5 text-gray-500 text-xs font-medium">Bahan</th>
+                    <th className="p-2.5 text-center text-gray-500 text-xs font-medium">Qty</th>
+                    <th className="p-2.5 text-right text-gray-500 text-xs font-medium">Harga Satuan</th>
+                    <th className="p-2.5 text-right text-gray-500 text-xs font-medium">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {invoiceOrder.items.map((it) => (
+                    <tr key={it.id}>
+                      <td className="p-2.5 font-medium text-slate-800">{it.product.name}</td>
+                      <td className="p-2.5 text-center">
+                        {it.quantity} {it.product.unit}
+                      </td>
+                      <td className="p-2.5 text-right">
+                        Rp {it.pricePerUnit.toLocaleString("id-ID")}
+                      </td>
+                      <td className="p-2.5 text-right font-medium">
+                        Rp {it.subtotal.toLocaleString("id-ID")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Total Calculation */}
+            <div className="space-y-1.5 text-xs text-slate-600 text-right">
+              <p>
+                Subtotal Produk:{" "}
+                <span className="font-medium">
+                  Rp {invoiceOrder.totalAmount.toLocaleString("id-ID")}
+                </span>
+              </p>
+              <p>
+                Ongkos Kirim Hub:{" "}
+                <span className="font-medium">
+                  Rp {invoiceOrder.deliveryFee.toLocaleString("id-ID")}
+                </span>
+              </p>
+              <p className="text-sm font-bold text-slate-900 pt-2 border-t border-gray-200">
+                Total Tagihan:{" "}
+                <span className="text-emerald-700">
+                  Rp {invoiceOrder.finalAmount.toLocaleString("id-ID")}
+                </span>
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-4 border-t border-gray-200 print:hidden">
+              <button
+                onClick={() => setInvoiceOrder(null)}
+                className="flex-1 py-2 text-xs font-medium text-slate-600 bg-gray-100 rounded-md"
+              >
+                Tutup
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="flex-1 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md"
+              >
+                Cetak / Print PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Selesai & Upload Bukti Penerimaan */}
+      {completingOrder && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-gray-200 w-full max-w-md p-4 space-y-4">
+            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+              <h3 className="font-bold text-slate-900 text-sm">Konfirmasi Terima Barang</h3>
+              <button
+                onClick={() => setCompletingOrder(null)}
+                className="text-slate-400 hover:text-slate-600 font-medium"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmReceived} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Foto Bukti Kondisi Bahan (Berlaku 24 Jam)
                 </label>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleImageChange}
-                  disabled={compressing}
-                  className="w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer disabled:opacity-50"
+                  className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-slate-700"
                 />
-                {compressing && (
-                  <p className="text-[11px] text-blue-600 mt-1">Mengompres foto bukti...</p>
-                )}
-                {receivePreview && !compressing && (
-                  <div className="mt-2 relative rounded-lg overflow-hidden border w-full h-32">
-                    <img
-                      src={receivePreview}
-                      alt="Preview Penerimaan"
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded">
-                      Ukuran: {((receiveImage?.size || 0) / 1024).toFixed(0)} KB (Optimal)
-                    </div>
+                {receivePreview && (
+                  <div className="mt-2 h-28 w-full rounded-md overflow-hidden border border-gray-200">
+                    <img src={receivePreview} alt="Preview Terima" className="w-full h-full object-cover" />
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Catatan Kondisi Barang
-                </label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Catatan Penerimaan</label>
                 <textarea
                   value={receiveNotes}
                   onChange={(e) => setReceiveNotes(e.target.value)}
-                  placeholder="Contoh: Sayuran segar, timbangan sesuai, pengemasan rapi."
-                  className="w-full border rounded-lg p-2.5 text-xs outline-none focus:ring-2 focus:ring-emerald-500"
-                  rows={2}
+                  placeholder="Bahan diterima dalam keadaan segar dan lengkap."
+                  className="w-full border border-gray-300 rounded-md p-2.5 text-xs outline-none focus:border-emerald-500 h-20"
                 />
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-2 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setCompletingOrder(null)}
-                  className="flex-1 py-2.5 rounded-lg border text-gray-600 text-xs font-semibold hover:bg-gray-50 cursor-pointer"
+                  className="flex-1 py-2 text-xs font-medium text-slate-600 bg-gray-100 rounded-md"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submittingComplete || compressing}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md disabled:opacity-50"
                 >
-                  {submittingComplete ? "Memproses..." : "Konfirmasi Selesai ✓"}
+                  {submittingComplete ? "Menyimpan..." : "Konfirmasi Selesai"}
                 </button>
               </div>
             </form>
@@ -451,56 +720,67 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
         </div>
       )}
 
-      {/* Modal Review Ulasan Produk */}
+      {/* Modal Review */}
       {reviewingProductId && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="font-bold text-gray-900 text-lg">Beri Ulasan Kualitas Bahan ⭐</h3>
-            <form onSubmit={handleReviewSubmit} className="space-y-3">
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-gray-200 w-full max-w-md p-4 space-y-4">
+            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+              <h3 className="font-bold text-slate-900 text-sm">Ulas Produk</h3>
+              <button
+                onClick={() => setReviewingProductId(null)}
+                className="text-slate-400 hover:text-slate-600 font-medium"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitReview} className="space-y-4">
+              <p className="text-xs font-medium text-slate-800">
+                Produk: <span className="text-emerald-700">{reviewingProductName}</span>
+              </p>
+
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Rating Kesegaran (1-5 Bintang)
-                </label>
-                <select
-                  value={rating}
-                  onChange={(e) => setRating(Number(e.target.value))}
-                  className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                >
-                  <option value={5}>⭐⭐⭐⭐⭐ (5 - Sangat Segar & Bagus)</option>
-                  <option value={4}>⭐⭐⭐⭐ (4 - Bagus)</option>
-                  <option value={3}>⭐⭐⭐ (3 - Cukup)</option>
-                  <option value={2}>⭐⭐ (2 - Kurang Segar)</option>
-                  <option value={1}>⭐ (1 - Rusak / Buruk)</option>
-                </select>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Rating (1-5)</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      className={`text-2xl cursor-pointer ${
+                        rating >= star ? "text-amber-400" : "text-slate-200"
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Catatan Kualitas
-                </label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Ulasan Anda</label>
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="Ceritakan kondisi bahan baku saat diterima..."
-                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm"
-                  rows={3}
+                  placeholder="Tulis ulasan Anda di sini."
+                  className="w-full border border-gray-300 rounded-md p-2.5 text-xs outline-none focus:border-emerald-500 h-20"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex gap-2 pt-2 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setReviewingProductId(null)}
-                  className="px-4 py-2 border rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 cursor-pointer"
+                  className="flex-1 py-2 text-xs font-medium text-slate-600 bg-gray-100 rounded-md"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingReview}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md disabled:opacity-50"
                 >
-                  {isSubmittingReview ? "Menyimpan..." : "Kirim Ulasan"}
+                  {isSubmittingReview ? "Mengirim..." : "Kirim Ulasan"}
                 </button>
               </div>
             </form>

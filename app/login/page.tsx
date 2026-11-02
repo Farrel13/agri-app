@@ -31,10 +31,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md border">
-        <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">Masuk ke AgriApp</h1>
-        
-        {error && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">{error}</div>}
+      <div className="bg-white p-4 rounded-md w-full max-w-md border border-gray-200">
+        <h1 className="text-xl font-bold text-center mb-4 text-gray-800">Masuk ke AgriApp</h1>
+
+        {error && <div className="bg-white text-rose-500 p-3 rounded-md mb-4 text-sm border border-rose-300">{error}</div>}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
@@ -44,7 +44,7 @@ export default function LoginPage() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full border border-gray-300 rounded-md p-2.5 outline-none focus:border-emerald-500 text-sm"
             />
           </div>
           <div>
@@ -54,20 +54,20 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full border border-gray-300 rounded-md p-2.5 outline-none focus:border-emerald-500 text-sm"
             />
           </div>
           <button
             type="submit"
-            className="w-full bg-emerald-600 text-white font-semibold py-2.5 rounded-lg hover:bg-emerald-700 transition"
+            className="w-full bg-emerald-600 text-white font-medium py-2.5 rounded-md hover:bg-emerald-700 transition"
           >
             Masuk
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-600">
+        <div className="mt-4 text-center text-sm text-gray-600">
           Belum punya akun?{" "}
-          <Link href="/register" className="text-emerald-600 font-semibold hover:underline">
+          <Link href="/register" className="text-emerald-600 font-medium hover:underline">
             Daftar di sini
           </Link>
         </div>

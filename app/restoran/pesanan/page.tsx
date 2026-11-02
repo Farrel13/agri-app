@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { cleanupExpiredImages } from "@/lib/cleanup";
 import PesananRestoranClient from "./PesananRestoranClient";
 
 export default async function PesananRestoranPage() {
@@ -17,9 +16,6 @@ export default async function PesananRestoranPage() {
   if (session.user.role !== "RESTAURANT") {
     redirect("/");
   }
-
-  // Bersihkan foto panen & foto penerimaan barang yang > 24 jam
-  await cleanupExpiredImages();
 
   // Ambil daftar pesanan milik restoran yang sedang login
   const orders = await prisma.order.findMany({

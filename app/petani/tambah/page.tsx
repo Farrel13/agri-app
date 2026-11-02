@@ -52,18 +52,21 @@ export default function HalamanTambahPanen() {
   };
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Tambah Panen Baru</h1>
-        <Link href="/petani" className="text-gray-500 hover:text-gray-700">
+    <div className="p-4 max-w-2xl mx-auto space-y-4 font-sans">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Tambah Panen Baru</h1>
+          <p className="text-xs text-gray-500 mt-0.5">Daftarkan komoditas panen untuk diajukan ke Toko Hub.</p>
+        </div>
+        <Link href="/petani" className="text-xs text-gray-500 hover:text-gray-800 font-medium px-3 py-1.5 border border-gray-200 rounded-md">
           Kembali
         </Link>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="bg-white p-4 rounded-md border border-gray-200">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Nama Produk
             </label>
             <input
@@ -71,13 +74,13 @@ export default function HalamanTambahPanen() {
               name="name"
               required
               placeholder="Contoh: Wortel Organik"
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+              className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500 text-gray-900"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
                 Jumlah Stok
               </label>
               <input
@@ -86,16 +89,16 @@ export default function HalamanTambahPanen() {
                 required
                 min="1"
                 placeholder="Contoh: 100"
-                className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
+                className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500 text-gray-900"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
                 Satuan
               </label>
               <select
                 name="unit"
-                className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
+                className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500 text-gray-900 bg-white"
               >
                 <option value="kg">Kilogram (kg)</option>
                 <option value="ikat">Ikat</option>
@@ -106,7 +109,7 @@ export default function HalamanTambahPanen() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Harga Jual Petani (Rp)
             </label>
             <input
@@ -115,17 +118,13 @@ export default function HalamanTambahPanen() {
               required
               min="100"
               placeholder="Contoh: 15000"
-              className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
+              className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500 text-gray-900"
             />
           </div>
 
-          {/* Upload Foto dengan Kompresi Otomatis */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 flex justify-between items-center">
-              <span>Foto Panen (24 Jam)</span>
-              <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                Auto-Kompres ⚡
-              </span>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Foto Panen
             </label>
             <input
               type="file"
@@ -133,13 +132,13 @@ export default function HalamanTambahPanen() {
               accept="image/*"
               onChange={handleImageChange}
               disabled={compressing}
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer disabled:opacity-50"
+              className="w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer disabled:opacity-50"
             />
             {compressing && (
-              <p className="text-xs text-blue-600 mt-1">Mengompres foto...</p>
+              <p className="text-[10px] text-gray-500 mt-1">Mengompres foto...</p>
             )}
             {previewUrl && !compressing && (
-              <div className="mt-2 relative rounded overflow-hidden border w-full h-40">
+              <div className="mt-2 relative rounded overflow-hidden border border-gray-200 w-full h-36">
                 <img
                   src={previewUrl}
                   alt="Preview"
@@ -151,9 +150,9 @@ export default function HalamanTambahPanen() {
                     setSelectedImage(null);
                     setPreviewUrl(null);
                   }}
-                  className="absolute top-1 right-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded hover:bg-black/80"
+                  className="absolute top-1 right-1 bg-gray-900 text-white text-[10px] px-2 py-0.5 rounded cursor-pointer"
                 >
-                  ✕ Batal
+                  Batal
                 </button>
               </div>
             )}
@@ -162,9 +161,9 @@ export default function HalamanTambahPanen() {
           <button
             type="submit"
             disabled={loading || compressing}
-            className="w-full bg-green-600 text-white font-bold py-3 rounded mt-4 hover:bg-green-700 transition disabled:opacity-50 cursor-pointer"
+            className="w-full bg-emerald-600 text-white font-medium py-2 rounded-md mt-2 hover:bg-emerald-700 transition disabled:opacity-50 cursor-pointer text-xs"
           >
-            {loading ? "Menyimpan..." : compressing ? "Mengompres..." : "Simpan & Ajukan ke Hub"}
+            {loading ? "Menyimpan..." : compressing ? "Mengompres..." : "Simpan dan Ajukan ke Hub"}
           </button>
         </form>
       </div>

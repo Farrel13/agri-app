@@ -2,12 +2,86 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { updateOrderStatusAction, verifyOrderPaymentAction } from "./actions";
+import {
+  updateOrderStatusAction,
+  dispatchOrderAction,
+  verifyOrderPaymentAction,
+} from "./actions";
 
-export default function HubPesananClient({ initialOrders }: { initialOrders: any[] }) {
-  const [orders, setOrders] = useState(initialOrders);
+interface OrderItem {
+  id: string;
+  quantity: number;
+  pricePerUnit: number;
+  subtotal: number;
+  product: {
+    id: string;
+    name: string;
+    unit: string;
+    priceFarmer: number;
+  };
+}
+
+interface OrderData {
+  id: string;
+  orderNumber: string;
+  status: string;
+  totalAmount: number;
+  deliveryFee: number;
+  finalAmount: number;
+  notes?: string | null;
+  courierName?: string | null;
+  courierPhone?: string | null;
+  vehicleNumber?: string | null;
+  estimatedArrival?: string | null;
+  createdAt: Date | string;
+  buyer: { id: string; name: string; email?: string | null };
+  deliveryAddress?: {
+    label: string;
+    recipientName: string;
+    phoneNumber: string;
+    street: string;
+    city: string;
+  } | null;
+  payment?: {
+    method: string;
+    status: string;
+    amount: number;
+  } | null;
+  items: OrderItem[];
+  orderCost: number;
+  orderProfit: number;
+}
+
+interface HubPesananClientProps {
+  initialOrders: OrderData[];
+  financialStats: {
+    totalOrders: number;
+    completedOrdersCount: number;
+    totalRevenue: number;
+    totalFarmerCost: number;
+    netProfit: number;
+    profitMarginPercent: number;
+  };
+}
+
+export default function HubPesananClient({
+  initialOrders,
+  financialStats,
+}: HubPesananClientProps) {
+  const [orders, setOrders] = useState<OrderData[]>(initialOrders);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; success: boolean } | null>(null);
+
+  // State Modal Pengiriman & Kurir
+  const [dispatchingOrder, setDispatchingOrder] = useState<OrderData | null>(null);
+  const [courierName, setCourierName] = useState("");
+  const [courierPhone, setCourierPhone] = useState("");
+  const [vehicleNumber, setVehicleNumber] = useState("");
+  const [estimatedArrival, setEstimatedArrival] = useState("45 Menit");
+  const [isSubmittingDispatch, setIsSubmittingDispatch] = useState(false);
+
+  // State Modal Cetak Surat Jalan
+  const [printOrder, setPrintOrder] = useState<OrderData | null>(null);
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     setLoadingId(orderId);
@@ -36,7 +110,7 @@ export default function HubPesananClient({ initialOrders }: { initialOrders: any
       setOrders((prev) =>
         prev.map((o) =>
           o.id === orderId
-            ? { ...o, status: "DIPROSES_HUB", payment: { ...o.payment, status: "LUNAS" } }
+            ? { ...o, status: "DIPROSES_HUB", payment: { ...o.payment!, status: "LUNAS" } }
             : o
         )
       );
@@ -45,148 +119,496 @@ export default function HubPesananClient({ initialOrders }: { initialOrders: any
     }
   };
 
+  const handleSubmitDispatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dispatchingOrder) return;
+
+    setIsSubmittingDispatch(true);
+    setMsg(null);
+
+    const formData = new FormData();
+    formData.append("orderId", dispatchingOrder.id);
+    formData.append("courierName", courierName || "Kurir Internal Hub");
+    formData.append("courierPhone", courierPhone || "-");
+    formData.append("vehicleNumber", vehicleNumber || "B 1234 XYZ");
+    formData.append("estimatedArrival", estimatedArrival || "45 Menit");
+
+    const res = await dispatchOrderAction(formData);
+    setIsSubmittingDispatch(false);
+
+    if (res.success) {
+      setMsg({ text: res.message, success: true });
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === dispatchingOrder.id
+            ? {
+                ...o,
+                status: "DIKIRIM",
+                courierName,
+                courierPhone,
+                vehicleNumber,
+                estimatedArrival,
+              }
+            : o
+        )
+      );
+      setDispatchingOrder(null);
+    } else {
+      setMsg({ text: res.message, success: false });
+    }
+  };
+
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-4 max-w-7xl mx-auto space-y-4 font-sans">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Manajemen Pesanan Masuk (Hub)</h1>
-          <p className="text-sm text-gray-500">
-            Kelola pesanan dari restoran, periksa bukti bayar, dan update status pengiriman bahan.
+          <h1 className="text-xl font-bold text-gray-900">
+            Pesanan Masuk dan Laporan Margin Hub
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Pantau pendapatan, kelola kurir, dan verifikasi pembayaran.
           </p>
         </div>
+
         <Link
           href="/hub"
-          className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-semibold px-4 py-2.5 rounded-lg transition"
+          className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-medium px-4 py-2 rounded-md transition"
         >
-          ← Kembali ke Dashboard Verifikasi
+          Etalase dan Verifikasi Panen
         </Link>
       </div>
 
       {msg && (
         <div
-          className={`p-4 rounded-xl text-sm font-medium border ${
+          className={`p-4 rounded-md text-xs font-medium border ${
             msg.success
-              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-              : "bg-red-50 text-red-800 border-red-200"
+              ? "bg-white text-emerald-700 border-emerald-300"
+              : "bg-white text-red-700 border-red-300"
           }`}
         >
           {msg.text}
         </div>
       )}
 
+      {/* Ringkasan Finansial / Margin Hub */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white p-4 rounded-md border border-gray-200">
+          <span className="text-xs font-medium text-gray-500 block">
+            Omzet Penjualan
+          </span>
+          <p className="text-xl font-bold text-gray-900 mt-1">
+            Rp {financialStats.totalRevenue.toLocaleString("id-ID")}
+          </p>
+          <span className="text-xs text-gray-400 mt-0.5 block">Dari pesanan terverifikasi</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-md border border-gray-200">
+          <span className="text-xs font-medium text-gray-500 block">
+            Modal Beli Petani
+          </span>
+          <p className="text-xl font-bold text-gray-900 mt-1">
+            Rp {financialStats.totalFarmerCost.toLocaleString("id-ID")}
+          </p>
+          <span className="text-xs text-gray-400 mt-0.5 block">Kewajiban bayar ke petani</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-md border border-gray-200">
+          <span className="text-xs font-medium text-gray-500 block">
+            Laba Bersih Hub
+          </span>
+          <p className="text-xl font-bold text-emerald-600 mt-1">
+            Rp {financialStats.netProfit.toLocaleString("id-ID")}
+          </p>
+          <span className="text-xs text-gray-500 mt-0.5 block">
+            Margin: {financialStats.profitMarginPercent}%
+          </span>
+        </div>
+
+        <div className="bg-white p-4 rounded-md border border-gray-200">
+          <span className="text-xs font-medium text-gray-500 block">
+            Total Transaksi
+          </span>
+          <p className="text-xl font-bold text-gray-900 mt-1">{financialStats.totalOrders} Pesanan</p>
+          <span className="text-xs text-gray-400 mt-0.5 block">
+            {financialStats.completedOrdersCount} Selesai Diterima
+          </span>
+        </div>
+      </div>
+
       {orders.length === 0 ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-dashed border-gray-300 space-y-3">
-          <div className="text-4xl">📦</div>
-          <h3 className="font-bold text-gray-800">Belum Ada Pesanan Masuk</h3>
-          <p className="text-xs text-gray-500">
-            Pesanan dari restoran yang membeli bahan di toko kamu akan muncul di sini.
+        <div className="bg-white p-4 text-center rounded-md border border-dashed border-gray-300">
+          <h3 className="font-medium text-gray-800 mt-2">Belum Ada Pesanan Masuk</h3>
+          <p className="text-xs text-gray-400 mt-1">
+            Pesanan dari restoran akan muncul di sini.
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {orders.map((ord) => (
-            <div
-              key={ord.id}
-              className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4"
-            >
-              <div className="flex flex-wrap justify-between items-center gap-3 border-b border-gray-100 pb-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-gray-900 text-lg">
-                      #{ord.orderNumber}
-                    </span>
-                    <span className="bg-blue-50 text-blue-700 text-xs px-2.5 py-0.5 rounded font-semibold">
-                      Restoran: {ord.buyer?.name}
-                    </span>
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    Dipesan pada: {new Date(ord.createdAt).toLocaleString("id-ID")}
-                  </div>
-                </div>
+        <div className="space-y-3">
+          {orders.map((ord) => {
+            const isPendingPayment = ord.payment?.status !== "LUNAS";
+            const canDispatch = ord.status === "DIPROSES_HUB";
+            const isDelivering = ord.status === "DIKIRIM";
+            const isDone = ord.status === "SELESAI";
 
-                {/* Status Pembayaran */}
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <div className="text-xs text-gray-500">Pembayaran:</div>
-                    <span
-                      className={`text-xs font-bold px-2 py-0.5 rounded ${
-                        ord.payment?.status === "LUNAS"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {ord.payment?.status || "PENDING"} ({ord.payment?.method || "TRANSFER"})
-                    </span>
-                  </div>
-
-                  {ord.payment?.status !== "LUNAS" && (
-                    <button
-                      onClick={() => handleVerifyPayment(ord.id)}
-                      disabled={loadingId === ord.id}
-                      className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg transition disabled:opacity-50"
-                    >
-                      Konfirmasi Lunas ✅
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Rincian Produk Pesanan */}
-              <div className="bg-gray-50 p-4 rounded-xl divide-y divide-gray-200">
-                <div className="text-xs font-bold text-gray-700 pb-2">Rincian Barang Pesanan:</div>
-                {ord.items.map((it: any) => (
-                  <div key={it.id} className="py-2 flex justify-between items-center text-xs">
-                    <div>
-                      <span className="font-medium text-gray-800">{it.product.name}</span>
-                      <span className="text-gray-500 ml-2">
-                        x {it.quantity} {it.product.unit} (@ Rp {it.pricePerUnit.toLocaleString("id-ID")})
+            return (
+              <div
+                key={ord.id}
+                className="bg-white border border-gray-200 rounded-md p-4 space-y-3"
+              >
+                {/* Header Card */}
+                <div className="flex flex-wrap justify-between items-center gap-3 border-b border-gray-100 pb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-900 text-sm">#{ord.orderNumber}</span>
+                      <span className="bg-white text-gray-700 text-xs px-2 py-0.5 rounded border border-gray-200 font-medium">
+                        {ord.buyer?.name}
+                      </span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded font-medium ${
+                          ord.status === "SELESAI"
+                            ? "bg-emerald-600 text-white"
+                            : ord.status === "DIKIRIM"
+                            ? "bg-gray-700 text-white"
+                            : ord.status === "DIPROSES_HUB"
+                            ? "bg-gray-100 text-gray-700"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {ord.status}
                       </span>
                     </div>
-                    <div className="font-semibold text-gray-800">
-                      Rp {it.subtotal.toLocaleString("id-ID")}
-                    </div>
+                    <span className="text-xs text-gray-400">
+                      Waktu Pesan: {new Date(ord.createdAt).toLocaleString("id-ID")}
+                    </span>
                   </div>
-                ))}
-                <div className="pt-2 flex justify-between text-xs font-bold text-gray-900">
-                  <span>Total Tagihan (Termasuk Ongkir Rp {ord.deliveryFee.toLocaleString("id-ID")}):</span>
-                  <span className="text-emerald-700 text-sm">
-                    Rp {ord.finalAmount.toLocaleString("id-ID")}
-                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPrintOrder(ord)}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-md transition cursor-pointer"
+                    >
+                      Surat Jalan
+                    </button>
+
+                    {isPendingPayment && (
+                      <button
+                        onClick={() => handleVerifyPayment(ord.id)}
+                        disabled={loadingId === ord.id}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-md transition disabled:opacity-50"
+                      >
+                        Konfirmasi Lunas
+                      </button>
+                    )}
+
+                    {canDispatch && (
+                      <button
+                        onClick={() => {
+                          setDispatchingOrder(ord);
+                          setCourierName("");
+                          setCourierPhone("");
+                          setVehicleNumber("");
+                        }}
+                        className="px-3 py-1.5 bg-gray-800 hover:bg-gray-900 text-white text-xs font-medium rounded-md transition"
+                      >
+                        Kirim via Kurir
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Info Alamat & Kurir */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs border border-gray-100 p-3 rounded-md">
+                  <div>
+                    <span className="text-gray-400 font-medium text-xs block">
+                      Tujuan Antar
+                    </span>
+                    <p className="font-medium text-gray-800 mt-0.5">
+                      {ord.deliveryAddress?.label || "Dapur Restoran"} ({ord.deliveryAddress?.recipientName})
+                    </p>
+                    <p className="text-gray-500 text-xs">
+                      {ord.deliveryAddress?.street}, {ord.deliveryAddress?.city}
+                    </p>
+                    <p className="text-gray-500 text-xs">
+                      Kontak: {ord.deliveryAddress?.phoneNumber}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="text-gray-400 font-medium text-xs block">
+                      Status Logistik
+                    </span>
+                    {ord.courierName ? (
+                      <div className="text-xs text-gray-700 mt-0.5 space-y-0.5">
+                        <p>
+                          Kurir: <strong>{ord.courierName}</strong> ({ord.courierPhone})
+                        </p>
+                        <p>
+                          Kendaraan: <strong>{ord.vehicleNumber}</strong> | Est:{" "}
+                          <strong>{ord.estimatedArrival}</strong>
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-gray-400 italic text-xs mt-0.5">
+                        Belum diberangkatkan (menunggu armada kurir).
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Item Produk & Rincian Margin per Pesanan */}
+                <div className="border border-gray-200 rounded-md overflow-hidden text-xs">
+                  <table className="w-full text-left">
+                    <thead className="text-gray-500 border-b border-gray-200 text-xs font-medium">
+                      <tr>
+                        <th className="p-2.5">Bahan</th>
+                        <th className="p-2.5 text-center">Qty</th>
+                        <th className="p-2.5 text-right">Modal Tani</th>
+                        <th className="p-2.5 text-right">Harga Toko</th>
+                        <th className="p-2.5 text-right">Margin Toko</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {ord.items.map((it) => {
+                        const farmerCost = it.quantity * (it.product?.priceFarmer || 0);
+                        const margin = it.subtotal - farmerCost;
+                        return (
+                          <tr key={it.id}>
+                            <td className="p-2.5 font-medium text-gray-800">{it.product.name}</td>
+                            <td className="p-2.5 text-center">
+                              {it.quantity} {it.product.unit}
+                            </td>
+                            <td className="p-2.5 text-right text-gray-500">
+                              Rp {farmerCost.toLocaleString("id-ID")}
+                            </td>
+                            <td className="p-2.5 text-right font-medium text-gray-800">
+                              Rp {it.subtotal.toLocaleString("id-ID")}
+                            </td>
+                            <td className="p-2.5 text-right font-medium text-emerald-600">
+                              +Rp {margin.toLocaleString("id-ID")}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Footer Total */}
+                <div className="flex flex-wrap justify-between items-center text-xs pt-1">
+                  <div className="text-gray-500">
+                    <span>Ongkir Dibayar Restoran: </span>
+                    <strong className="text-gray-800">
+                      Rp {ord.deliveryFee.toLocaleString("id-ID")}
+                    </strong>
+                  </div>
+                  <div className="space-x-3">
+                    <span className="text-gray-600">
+                      Laba Hub:{" "}
+                      <strong className="text-emerald-600 font-bold">
+                        Rp {ord.orderProfit.toLocaleString("id-ID")}
+                      </strong>
+                    </span>
+                    <span className="text-gray-900 font-bold text-sm">
+                      Total: Rp {ord.finalAmount.toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal Kirim Pesanan (Assign Driver / Kurir) */}
+      {dispatchingOrder && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-gray-200 w-full max-w-md p-4 space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-bold text-gray-900 text-sm">
+                Kirim Pesanan #{dispatchingOrder.orderNumber}
+              </h3>
+              <button
+                onClick={() => setDispatchingOrder(null)}
+                className="text-gray-400 hover:text-gray-600 font-medium"
+              >
+                X
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitDispatch} className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Nama Kurir / Pengantar
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="cth: Pak Joko"
+                  value={courierName}
+                  onChange={(e) => setCourierName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md p-2.5 text-xs outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    No. HP Kurir
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="081298765432"
+                    value={courierPhone}
+                    onChange={(e) => setCourierPhone(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md p-2.5 text-xs outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Plat Nomor Armada
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="B 4567 KAA"
+                    value={vehicleNumber}
+                    onChange={(e) => setVehicleNumber(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md p-2.5 text-xs outline-none focus:border-emerald-500"
+                  />
                 </div>
               </div>
 
-              {/* Footer Alamat & Ubah Status Order */}
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pt-2">
-                <div className="text-xs text-gray-600">
-                  <span className="font-semibold">📍 Kirim ke: </span>
-                  {ord.deliveryAddress ? (
-                    <span>
-                      {ord.deliveryAddress.label} - {ord.deliveryAddress.street},{" "}
-                      {ord.deliveryAddress.city} (Penerima: {ord.deliveryAddress.recipientName} / {ord.deliveryAddress.phoneNumber})
-                    </span>
-                  ) : (
-                    <span>Dapur Restoran</span>
-                  )}
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Estimasi Sampai ke Restoran
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="30 - 45 Menit"
+                  value={estimatedArrival}
+                  onChange={(e) => setEstimatedArrival(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md p-2.5 text-xs outline-none focus:border-emerald-500"
+                />
+              </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-gray-700">Ubah Status:</span>
-                  <select
-                    value={ord.status}
-                    onChange={(e) => handleStatusChange(ord.id, e.target.value)}
-                    disabled={loadingId === ord.id}
-                    className="border border-gray-300 rounded-lg text-xs p-1.5 bg-white font-medium focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="MENUNGGU_PEMBAYARAN">Menunggu Pembayaran</option>
-                    <option value="DIPROSES_HUB">Sedang Diproses Hub</option>
-                    <option value="DIKIRIM">Sedang Dikirim</option>
-                    <option value="SELESAI">Selesai</option>
-                    <option value="DIBATALKAN">Dibatalkan</option>
-                  </select>
-                </div>
+              <div className="flex gap-2 pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setDispatchingOrder(null)}
+                  className="flex-1 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-md"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingDispatch}
+                  className="flex-1 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md disabled:opacity-50"
+                >
+                  {isSubmittingDispatch ? "Memproses..." : "Berangkatkan Kurir"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Cetak Surat Jalan Pengiriman */}
+      {printOrder && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-gray-200 w-full max-w-xl p-4 space-y-4 max-h-[95vh] overflow-y-auto print:p-0 print:border-0">
+            <div className="flex justify-between items-start border-b pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">SURAT JALAN PENGIRIMAN</h2>
+                <p className="text-xs text-gray-500">Dokumen Pengantar Bahan Baku</p>
+              </div>
+
+              <div className="text-right">
+                <p className="font-mono font-bold text-gray-900 text-sm">
+                  #{printOrder.orderNumber}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {new Date(printOrder.createdAt).toLocaleDateString("id-ID")}
+                </p>
               </div>
             </div>
-          ))}
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-gray-400 font-medium block text-xs">
+                  Tujuan Pengiriman
+                </span>
+                <p className="font-medium text-gray-800 mt-1">{printOrder.buyer.name}</p>
+                <p className="text-gray-600 text-xs">
+                  {printOrder.deliveryAddress?.street}, {printOrder.deliveryAddress?.city}
+                </p>
+                <p className="text-gray-600 text-xs">
+                  Telp: {printOrder.deliveryAddress?.phoneNumber}
+                </p>
+              </div>
+
+              <div>
+                <span className="text-gray-400 font-medium block text-xs">
+                  Armada Kurir
+                </span>
+                <p className="font-medium text-gray-800 mt-1">{printOrder.courierName || "Internal"}</p>
+                <p className="text-gray-600 text-xs">Plat: {printOrder.vehicleNumber || "-"}</p>
+                <p className="text-gray-600 text-xs">Hp: {printOrder.courierPhone || "-"}</p>
+              </div>
+            </div>
+
+            <div className="border border-gray-200 rounded-md overflow-hidden">
+              <table className="w-full text-xs text-left">
+                <thead className="border-b border-gray-200 text-gray-500 font-medium">
+                  <tr>
+                    <th className="p-2.5">Nama Bahan</th>
+                    <th className="p-2.5 text-center">Jumlah Antar</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {printOrder.items.map((it) => (
+                    <tr key={it.id}>
+                      <td className="p-2.5 font-medium text-gray-800">{it.product.name}</td>
+                      <td className="p-2.5 text-center font-medium">
+                        {it.quantity} {it.product.unit}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="grid grid-cols-2 text-center text-xs pt-8 border-t">
+              <div>
+                <p className="text-gray-500 text-xs">Diserahkan oleh (Sopir Hub)</p>
+                <div className="h-16" />
+                <p className="font-medium text-gray-800">
+                  ( {printOrder.courierName || "....................."} )
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500 text-xs">Diterima oleh (Restoran)</p>
+                <div className="h-16" />
+                <p className="font-medium text-gray-800">( ..................... )</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4 border-t print:hidden">
+              <button
+                onClick={() => setPrintOrder(null)}
+                className="flex-1 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-md"
+              >
+                Tutup
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="flex-1 py-2 text-xs font-medium text-white bg-gray-800 hover:bg-gray-900 rounded-md"
+              >
+                Cetak Surat Jalan
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

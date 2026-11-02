@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { cleanupExpiredImages } from "@/lib/cleanup";
 import { ensureHubOwnership } from "@/lib/hubSync";
 import HubClient from "./HubClient";
 
@@ -19,8 +18,7 @@ export default async function DashboardHub() {
     redirect("/");
   }
 
-  // 1. Bersihkan foto expired 24 jam & sinkronkan kepemilikan data lama
-  await cleanupExpiredImages();
+  // 1. Sinkronkan kepemilikan data lama
   await ensureHubOwnership();
 
   // 2. Ambil antrean panen masuk per hari dari petani (belum diverifikasi)

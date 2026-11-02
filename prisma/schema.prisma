@@ -17,6 +17,7 @@ enum Role {
   PETANI
   HUB
   RESTAURANT
+  ADMIN
 }
 
 enum OrderStatus {
@@ -31,6 +32,7 @@ enum PaymentMethod {
   TRANSFER_BANK
   E_WALLET
   COD
+  QRIS
 }
 
 enum PaymentStatus {
@@ -128,6 +130,12 @@ model Order {
   deliveryFee     Int           @default(0) // Ongkos kirim Hub -> Restoran
   finalAmount     Int           // Total tagihan bersih (totalAmount + deliveryFee)
   notes           String?       // Catatan khusus pemesan
+
+  // Informasi Logistik / Pengiriman dari Hub
+  courierName            String?       // Nama Driver / Kurir Hub
+  courierPhone           String?       // Nomor kontak kurir
+  vehicleNumber          String?       // Plat nomor armada pengantar
+  estimatedArrival       String?       // Estimasi waktu sampai (cth: "45 Menit")
 
   // Bukti Penerimaan Barang oleh Restoran (Foto berlaku 24 jam)
   receivedImageUrl       String?

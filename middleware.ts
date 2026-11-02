@@ -26,19 +26,29 @@ export default withAuth(
     if (url.startsWith("/restoran") && role !== "RESTAURANT") {
       return NextResponse.redirect(new URL("/", req.url));
     }
+
+    // 5. Kunci akses halaman Admin
+    if (url.startsWith("/admin") && role !== "ADMIN") {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
   },
   {
     secret: process.env.NEXTAUTH_SECRET,
     callbacks: {
       authorized: ({ req, token }) => {
         const path = req.nextUrl.pathname;
-        
-        // Halaman login dan register BOLEH diakses tanpa token
-        if (path === "/login" || path === "/register") {
+
+        // Halaman landing page, login, register, dan cron API boleh diakses tanpa token
+        if (
+          path === "/" ||
+          path === "/login" ||
+          path === "/register" ||
+          path.startsWith("/api/cron")
+        ) {
           return true;
         }
-        
-        // Sisa halaman lainnya (termasuk "/") WAJIB memiliki token (harus login)
+
+        // Halaman dashboard lainnya WAJIB memiliki token (harus login)
         return !!token;
       },
     },
@@ -46,6 +56,5 @@ export default withAuth(
 );
 
 export const config = {
-  // Tambahkan "/", "/login", dan "/register" ke dalam pengawasan satpam Middleware
-  matcher: ["/", "/login", "/register", "/petani/:path*", "/hub/:path*", "/restoran/:path*"],
+  matcher: ["/", "/login", "/register", "/petani/:path*", "/hub/:path*", "/restoran/:path*", "/admin/:path*"],
 };

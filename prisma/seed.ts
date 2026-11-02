@@ -55,7 +55,24 @@ async function main() {
     },
   });
 
-  console.log("Seeding user berhasil dengan password terenkripsi & username!");
+  // Buat User Super Admin
+  const admin = await prisma.user.upsert({
+    where: { email: "admin@test.com" },
+    update: {
+      password: hashedPassword,
+      username: "admin_agri",
+      role: Role.ADMIN,
+    },
+    create: {
+      email: "admin@test.com",
+      username: "admin_agri",
+      name: "Super Admin Platform",
+      password: hashedPassword,
+      role: Role.ADMIN,
+    },
+  });
+
+  console.log("Seeding user berhasil dengan password terenkripsi & username (termasuk Admin)!");
 
   // Seeding Alamat contoh untuk Restoran (Address)
   const alamatResto = await prisma.address.upsert({
