@@ -116,6 +116,19 @@ export const authOptions: NextAuthOptions = {
         session.user.username = token.username;
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // Izinkan URL relatif agar redirect tetap di domain saat ini (misal di Vercel)
+      if (url.startsWith("/")) return url;
+      try {
+        const parsedUrl = new URL(url);
+        if (parsedUrl.origin === baseUrl || parsedUrl.hostname.endsWith("vercel.app")) {
+          return url;
+        }
+      } catch {
+        // Abaikan URL format tidak valid
+      }
+      return baseUrl;
     }
   },
   pages: {

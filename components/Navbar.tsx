@@ -153,7 +153,7 @@ export default function Navbar() {
 
           <button
             type="button"
-            onClick={() => signOut({ callbackUrl: "/login", redirect: true })}
+            onClick={() => signOut({ callbackUrl: "/", redirect: true })}
             className="text-xs bg-white text-rose-600 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-md font-medium hover:bg-rose-50 transition border border-rose-200 cursor-pointer"
           >
             Logout
@@ -258,7 +258,7 @@ export default function Navbar() {
           <div className="pt-2 border-t border-gray-100">
             <button
               type="button"
-              onClick={() => signOut({ callbackUrl: "/login", redirect: true })}
+              onClick={() => signOut({ callbackUrl: "/", redirect: true })}
               className="w-full text-left px-3 py-2 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 transition cursor-pointer flex items-center justify-between"
             >
               <span>Keluar Akun (Logout)</span>
