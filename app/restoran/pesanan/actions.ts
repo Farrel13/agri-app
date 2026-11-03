@@ -4,8 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
-import { writeFile } from "fs/promises";
-import path from "path";
+import { validateImageBuffer } from "@/lib/file-validator";
 
 // Restoran mengonfirmasi barang diterima & upload foto bukti penerimaan (berlaku 24 jam)
 export async function completeOrderAction(formData: FormData) {
@@ -37,12 +36,18 @@ export async function completeOrderAction(formData: FormData) {
     if (file && file.size > 0 && typeof file.arrayBuffer === "function") {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      const ext = path.extname(file.name) || ".jpg";
-      const filename = `receive-${Date.now()}-${Math.random().toString(36).substring(2, 7)}${ext}`;
-      const filePath = path.join(process.cwd(), "public", "uploads", filename);
+      const validation = validateImageBuffer(buffer, 3 * 1024 * 1024);
+      if (!validation.isValid) {
+        return { success: false, message: validation.error || "Berkas gambar ditolak." };
+      }
 
-      await writeFile(filePath, buffer);
-      receivedImageUrl = `/uploads/${filename}`;
+      const mimeType =
+        validation.detectedType === "png"
+          ? "image/png"
+          : validation.detectedType === "webp"
+          ? "image/webp"
+          : "image/jpeg";
+      receivedImageUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
       // Berlaku 24 jam saja
       receivedImageExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     }

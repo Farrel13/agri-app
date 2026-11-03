@@ -4,9 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import crypto from "crypto";
 import { validateImageBuffer } from "@/lib/file-validator";
 
 export interface TambahPanenInput {
@@ -82,16 +79,13 @@ export async function addProductAction(formData: FormData) {
         };
       }
 
-      const randomHex = crypto.randomBytes(16).toString("hex");
-      const filename = `${Date.now()}-${randomHex}${validation.sanitizedExt}`;
-
-      const uploadDir = path.join(process.cwd(), "public", "uploads");
-      await mkdir(uploadDir, { recursive: true });
-
-      const filePath = path.join(uploadDir, filename);
-      await writeFile(filePath, buffer);
-
-      imageUrl = `/uploads/${filename}`;
+      const mimeType =
+        validation.detectedType === "png"
+          ? "image/png"
+          : validation.detectedType === "webp"
+          ? "image/webp"
+          : "image/jpeg";
+      imageUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
     } catch (err) {
       console.error("Gagal memproses unggahan gambar:", err);
       return { success: false, message: "Gagal memproses unggahan gambar." };
@@ -139,13 +133,13 @@ export async function updateProductFarmerAction(formData: FormData) {
         return { success: false, message: validation.error || "Gambar ditolak." };
       }
 
-      const randomHex = crypto.randomBytes(16).toString("hex");
-      const filename = `${Date.now()}-${randomHex}${validation.sanitizedExt}`;
-      const uploadDir = path.join(process.cwd(), "public", "uploads");
-      await mkdir(uploadDir, { recursive: true });
-      await writeFile(path.join(uploadDir, filename), buffer);
-
-      newImageUrl = `/uploads/${filename}`;
+      const mimeType =
+        validation.detectedType === "png"
+          ? "image/png"
+          : validation.detectedType === "webp"
+          ? "image/webp"
+          : "image/jpeg";
+      newImageUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
       newExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     }
 
