@@ -15,9 +15,9 @@ export default async function HomePage() {
     if (role === "ADMIN") redirect("/admin");
   }
 
-  // Jika belum login, tampilkan Landing Page Publik yang representatif
+  // Jika belum login, tampilkan Landing Page Publik yang sederhana dan bersih
   return (
-    <div className="min-h-screen bg-white text-gray-800 flex flex-col">
+    <div className="min-h-screen bg-white text-gray-800 flex flex-col font-sans">
       {/* Navbar Landing */}
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -46,12 +46,12 @@ export default async function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <section className="py-16 sm:py-20 bg-white">
-        <div className="max-w-5xl mx-auto px-4 text-center">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight max-w-2xl mx-auto">
-            Platform rantai pasok pangan untuk Petani, Hub, dan Restoran
+      <main className="flex-1 flex items-center justify-center py-20 px-4">
+        <div className="max-w-2xl mx-auto text-center">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
+            Platform rantai pasok pangan terintegrasi
           </h1>
-          <p className="mt-4 text-sm text-gray-600 max-w-xl mx-auto leading-relaxed">
+          <p className="mt-4 text-sm text-gray-600 leading-relaxed max-w-lg mx-auto">
             Hubungkan petani langsung ke restoran melalui toko hub terverifikasi.
             Kelola stok, pesanan, dan pengiriman dalam satu platform.
           </p>
@@ -71,62 +71,10 @@ export default async function HomePage() {
             </Link>
           </div>
         </div>
-      </section>
-
-      {/* Ekosistem 3 Pilar */}
-      <section className="py-12 bg-white border-t border-gray-200">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="text-center mb-8">
-            <h2 className="text-lg font-medium text-gray-900">
-              Tiga peran dalam satu ekosistem
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* Card Petani */}
-            <div className="p-4 rounded-md bg-white border border-gray-200 flex flex-col">
-              <h3 className="text-sm font-bold text-gray-900">Petani (Pemasok)</h3>
-              <p className="text-sm text-gray-600 mt-2 flex-1">
-                Unggah hasil panen dengan foto. Tentukan harga langsung tanpa perantara.
-              </p>
-              <ul className="mt-3 text-xs text-gray-600 space-y-1">
-                <li>- Pencatatan stok panen real-time</li>
-                <li>- Visibilitas hasil penjualan</li>
-                <li>- Kepastian pembayaran dari Hub</li>
-              </ul>
-            </div>
-
-            {/* Card Hub */}
-            <div className="p-4 rounded-md bg-white border border-gray-200 flex flex-col">
-              <h3 className="text-sm font-bold text-gray-900">Toko Hub (Agregator)</h3>
-              <p className="text-sm text-gray-600 mt-2 flex-1">
-                Verifikasi kualitas panen, kelola margin, dan atur pengiriman ke restoran.
-              </p>
-              <ul className="mt-3 text-xs text-gray-600 space-y-1">
-                <li>- Verifikasi mutu produk</li>
-                <li>- Rekap laba dan margin otomatis</li>
-                <li>- Manajemen kurir dan armada</li>
-              </ul>
-            </div>
-
-            {/* Card Restoran */}
-            <div className="p-4 rounded-md bg-white border border-gray-200 flex flex-col">
-              <h3 className="text-sm font-bold text-gray-900">Restoran (Pembeli)</h3>
-              <p className="text-sm text-gray-600 mt-2 flex-1">
-                Beli bahan segar terverifikasi. Pesanan otomatis terpecah per Hub.
-              </p>
-              <ul className="mt-3 text-xs text-gray-600 space-y-1">
-                <li>- Katalog bahan segar terpusat</li>
-                <li>- Split order otomatis multi-Hub</li>
-                <li>- Invoice dan nota transaksi</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
+      </main>
 
       {/* Footer */}
-      <footer className="mt-auto py-6 bg-gray-50 border-t border-gray-200 text-gray-500 text-center text-xs">
+      <footer className="py-6 bg-gray-50 border-t border-gray-200 text-gray-500 text-center text-xs">
         <div className="max-w-5xl mx-auto px-4">
           <p>&copy; 2026 AgriApp Indonesia.</p>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { verifyProductAction, updateStoreProductAction } from "./actions";
 import { compressImage } from "@/lib/compressImage";
 
@@ -39,6 +39,13 @@ export default function HubClient({
   const [compressing, setCompressing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   const isImageValid = (imageUrl?: string | null, imageExpiresAt?: Date | string | null) => {
     if (!imageUrl || !imageExpiresAt) return false;
@@ -154,13 +161,21 @@ export default function HubClient({
 
       {message && (
         <div
-          className={`p-4 rounded-md text-xs font-medium border ${
+          className={`p-3.5 rounded-md text-xs font-medium border flex items-center justify-between gap-3 animate-in fade-in duration-150 ${
             message.type === "success"
-              ? "bg-white text-emerald-700 border-emerald-300"
-              : "bg-white text-rose-700 border-rose-300"
+              ? "bg-emerald-50/70 text-emerald-800 border-emerald-200"
+              : "bg-rose-50/70 text-rose-800 border-rose-200"
           }`}
         >
-          {message.text}
+          <span>{message.text}</span>
+          <button
+            type="button"
+            onClick={() => setMessage(null)}
+            className="text-gray-400 hover:text-gray-600 p-1 text-xs cursor-pointer"
+            title="Tutup"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -238,9 +253,10 @@ export default function HubClient({
                               <input
                                 type="number"
                                 name="priceHub"
-                                placeholder="Harga Jual"
+                                placeholder={`Min ${item.priceFarmer.toLocaleString("id-ID")}`}
                                 required
                                 min={item.priceFarmer}
+                                title={`Harga jual minimal modal petani (Rp ${item.priceFarmer.toLocaleString("id-ID")})`}
                                 className="w-28 pl-7 pr-2 py-1.5 border border-gray-300 rounded text-xs focus:border-emerald-500 outline-none"
                               />
                             </div>

@@ -66,15 +66,15 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
-      <div className="bg-white p-4 rounded-md w-full max-w-xl border border-gray-200">
-        <div className="text-center mb-4">
-          <h1 className="text-xl font-bold text-gray-800">Daftar Akun AgriApp</h1>
-          <p className="text-xs text-gray-500 mt-1">Buat akun untuk mengakses platform</p>
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 py-12 px-4">
+      <div className="bg-white p-6 sm:p-8 rounded-xl w-full max-w-xl border border-slate-200 shadow-xs">
+        <div className="text-center mb-5">
+          <h1 className="text-xl font-bold text-gray-900">Daftar Akun AgriApp</h1>
+          <p className="text-xs text-gray-500 mt-1">Buat akun untuk mengakses ekosistem rantai pasok</p>
         </div>
 
         {error && (
-          <div className="bg-white text-rose-500 p-3 rounded-md mb-4 text-sm border border-rose-300">
+          <div className="bg-rose-50/80 text-rose-700 p-3 rounded-md mb-4 text-xs border border-rose-200">
             {error}
           </div>
         )}

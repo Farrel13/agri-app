@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { changeUserRoleAction, deleteUserAction } from "./actions";
 import { Role } from "@prisma/client";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface UserItem {
   id: string;
@@ -48,6 +49,14 @@ export default function AdminClient({ users, orders, stats }: AdminClientProps) 
   const [searchUser, setSearchUser] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ text: string; success: boolean } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+  useEffect(() => {
+    if (msg) {
+      const timer = setTimeout(() => setMsg(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [msg]);
 
   const filteredUsers = userList.filter((u) => {
     const q = searchUser.toLowerCase();
@@ -74,12 +83,12 @@ export default function AdminClient({ users, orders, stats }: AdminClientProps) 
     }
   };
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`Hapus pengguna "${userName}" secara permanen?`)) return;
+  const handleDeleteUser = async (userId: string) => {
     setLoading(true);
     setMsg(null);
     const res = await deleteUserAction(userId);
     setLoading(false);
+    setDeleteTarget(null);
 
     if (res.success) {
       setMsg({ text: res.message, success: true });
@@ -102,13 +111,21 @@ export default function AdminClient({ users, orders, stats }: AdminClientProps) 
 
       {msg && (
         <div
-          className={`p-4 rounded-md text-xs font-medium border ${
+          className={`p-3.5 rounded-md text-xs font-medium border flex items-center justify-between gap-3 animate-in fade-in duration-150 ${
             msg.success
-              ? "bg-white text-emerald-700 border-emerald-300"
-              : "bg-white text-red-700 border-red-300"
+              ? "bg-emerald-50/70 text-emerald-800 border-emerald-200"
+              : "bg-rose-50/70 text-rose-800 border-rose-200"
           }`}
         >
-          {msg.text}
+          <span>{msg.text}</span>
+          <button
+            type="button"
+            onClick={() => setMsg(null)}
+            className="text-gray-400 hover:text-gray-600 p-1 text-xs cursor-pointer"
+            title="Tutup"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -138,11 +155,11 @@ export default function AdminClient({ users, orders, stats }: AdminClientProps) 
           </span>
           <p className="text-xl font-bold text-gray-900 mt-1">{stats.restaurantCount}</p>
         </div>
-        <div className="bg-white p-4 rounded-md border border-gray-200 col-span-2 lg:col-span-1">
+        <div className="bg-white p-4 rounded-md border border-gray-200 border-l-4 border-l-emerald-500 col-span-2 lg:col-span-1">
           <span className="text-xs font-medium text-gray-500 block">
             Perputaran Dana (GMV)
           </span>
-          <p className="text-lg font-bold text-gray-900 mt-1">
+          <p className="text-lg font-bold text-emerald-600 mt-1">
             Rp {stats.totalGMV.toLocaleString("id-ID")}
           </p>
         </div>
@@ -223,9 +240,9 @@ export default function AdminClient({ users, orders, stats }: AdminClientProps) 
                     </td>
                     <td className="p-3 text-right">
                       <button
-                        onClick={() => handleDeleteUser(u.id, u.name)}
+                        onClick={() => setDeleteTarget({ id: u.id, name: u.name })}
                         disabled={loading}
-                        className="text-rose-500 hover:text-rose-700 font-medium text-xs border border-rose-200 hover:border-rose-300 px-2.5 py-1 rounded-md transition bg-white"
+                        className="text-rose-600 hover:text-rose-700 font-medium text-xs border border-rose-200 hover:bg-rose-50 px-2.5 py-1 rounded-md transition bg-white cursor-pointer"
                       >
                         Hapus Akun
                       </button>
@@ -272,6 +289,21 @@ export default function AdminClient({ users, orders, stats }: AdminClientProps) 
           </table>
         </div>
       )}
+
+      {/* Dialog Konfirmasi Hapus User */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="Hapus Akun Pengguna?"
+        description={`Akun "${deleteTarget?.name}" beserta seluruh data terkait akan dihapus secara permanen dari sistem.`}
+        confirmText="Hapus Akun"
+        cancelText="Batal"
+        isDanger
+        isLoading={loading}
+        onConfirm={() => {
+          if (deleteTarget) handleDeleteUser(deleteTarget.id);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

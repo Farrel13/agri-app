@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   updateOrderStatusAction,
@@ -71,6 +71,13 @@ export default function HubPesananClient({
   const [orders, setOrders] = useState<OrderData[]>(initialOrders);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; success: boolean } | null>(null);
+
+  useEffect(() => {
+    if (msg) {
+      const timer = setTimeout(() => setMsg(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [msg]);
 
   // State Modal Pengiriman & Kurir
   const [dispatchingOrder, setDispatchingOrder] = useState<OrderData | null>(null);
@@ -180,13 +187,21 @@ export default function HubPesananClient({
 
       {msg && (
         <div
-          className={`p-4 rounded-md text-xs font-medium border ${
+          className={`p-3.5 rounded-md text-xs font-medium border flex items-center justify-between gap-3 animate-in fade-in duration-150 ${
             msg.success
-              ? "bg-white text-emerald-700 border-emerald-300"
-              : "bg-white text-red-700 border-red-300"
+              ? "bg-emerald-50/70 text-emerald-800 border-emerald-200"
+              : "bg-rose-50/70 text-rose-800 border-rose-200"
           }`}
         >
-          {msg.text}
+          <span>{msg.text}</span>
+          <button
+            type="button"
+            onClick={() => setMsg(null)}
+            className="text-gray-400 hover:text-gray-600 p-1 text-xs cursor-pointer"
+            title="Tutup"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -212,7 +227,7 @@ export default function HubPesananClient({
           <span className="text-xs text-gray-400 mt-0.5 block">Kewajiban bayar ke petani</span>
         </div>
 
-        <div className="bg-white p-4 rounded-md border border-gray-200">
+        <div className="bg-white p-4 rounded-md border border-gray-200 border-l-4 border-l-emerald-500">
           <span className="text-xs font-medium text-gray-500 block">
             Laba Bersih Hub
           </span>

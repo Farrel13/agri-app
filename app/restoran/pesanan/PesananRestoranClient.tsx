@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { completeOrderAction, createProductReviewAction } from "./actions";
 import { simulatePaymentAction } from "../actions";
@@ -80,6 +80,13 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const [msg, setMsg] = useState<{ text: string; success: boolean } | null>(null);
+
+  useEffect(() => {
+    if (msg) {
+      const timer = setTimeout(() => setMsg(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [msg]);
 
   const isImageValid = (imageUrl?: string | null, expiresAt?: Date | string | null) => {
     if (!imageUrl || !expiresAt) return false;
@@ -258,19 +265,27 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
 
       {msg && (
         <div
-          className={`p-4 rounded-md text-xs font-medium border ${
+          className={`p-3.5 rounded-md text-xs font-medium border flex items-center justify-between gap-3 animate-in fade-in duration-150 ${
             msg.success
-              ? "bg-white text-emerald-800 border-emerald-300"
-              : "bg-white text-red-800 border-red-300"
+              ? "bg-emerald-50/70 text-emerald-800 border-emerald-200"
+              : "bg-rose-50/70 text-rose-800 border-rose-200"
           }`}
         >
-          {msg.text}
+          <span>{msg.text}</span>
+          <button
+            type="button"
+            onClick={() => setMsg(null)}
+            className="text-gray-400 hover:text-gray-600 p-1 text-xs cursor-pointer"
+            title="Tutup"
+          >
+            ✕
+          </button>
         </div>
       )}
 
       {orders.length === 0 ? (
-        <div className="bg-white p-4 text-center rounded-md border border-gray-200">
-          <p className="font-medium text-slate-700 mt-2">Belum ada riwayat pesanan</p>
+        <div className="bg-white p-6 text-center rounded-md border border-gray-200">
+          <p className="font-medium text-slate-700 text-sm">Belum ada riwayat pesanan</p>
           <p className="text-xs text-slate-400 mt-1">Pilih komoditas di katalog bahan restoran.</p>
         </div>
       ) : (

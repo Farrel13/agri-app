@@ -56,6 +56,16 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
 
+  // Auto-dismiss feedback message
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
   // 1. Muat Cart dari LocalStorage saat pertama render (Persisten)
   useEffect(() => {
     try {
@@ -107,7 +117,10 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
 
     if (existing) {
       if (existing.quantity + 1 > product.stock) {
-        alert(`Jumlah melebihi stok yang tersedia (${product.stock} ${product.unit})`);
+        setMessage({
+          type: "error",
+          text: `Jumlah melebihi stok yang tersedia (${product.stock} ${product.unit})`,
+        });
         return;
       }
       nextCart = cart.map((item) =>
@@ -125,7 +138,10 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
       return;
     }
     if (newQty > maxStock) {
-      alert(`Maksimal pemesanan sesuai stok: ${maxStock}`);
+      setMessage({
+        type: "error",
+        text: `Maksimal pemesanan sesuai stok yang tersedia: ${maxStock}`,
+      });
       return;
     }
     const nextCart = cart.map((item) =>
@@ -189,8 +205,9 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
       setAddresses((prev) => [...prev, res.address!]);
       setSelectedAddressId(res.address.id);
       setShowAddressModal(false);
+      setMessage({ type: "success", text: "Alamat pengiriman berhasil ditambahkan." });
     } else {
-      alert(res.message || "Gagal menyimpan alamat.");
+      setMessage({ type: "error", text: res.message || "Gagal menyimpan alamat." });
     }
   };
 
@@ -217,21 +234,31 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
 
       {message && (
         <div
-          className={`p-4 rounded-md text-sm font-medium border flex items-center justify-between ${
+          className={`p-3.5 rounded-md text-xs font-medium border flex items-center justify-between gap-3 animate-in fade-in duration-150 ${
             message.type === "success"
-              ? "bg-white text-emerald-800 border-emerald-300"
-              : "bg-white text-red-800 border-red-300"
+              ? "bg-emerald-50/70 text-emerald-800 border-emerald-200"
+              : "bg-rose-50/70 text-rose-800 border-rose-200"
           }`}
         >
           <span>{message.text}</span>
-          {message.type === "success" && (
-            <Link
-              href="/restoran/pesanan"
-              className="ml-4 px-3 py-1.5 bg-emerald-600 text-white rounded-md text-xs font-medium hover:bg-emerald-700 transition"
+          <div className="flex items-center gap-2 shrink-0">
+            {message.type === "success" && (
+              <Link
+                href="/restoran/pesanan"
+                className="px-2.5 py-1 bg-emerald-600 text-white rounded text-xs font-medium hover:bg-emerald-700 transition"
+              >
+                Bayar Sekarang
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => setMessage(null)}
+              className="text-gray-400 hover:text-gray-600 p-1 text-xs"
+              title="Tutup pesan"
             >
-              Bayar Sekarang
-            </Link>
-          )}
+              ✕
+            </button>
+          </div>
         </div>
       )}
 
@@ -246,14 +273,32 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
               placeholder="Cari nama bahan pangan, toko hub, atau petani..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-gray-300 rounded-md py-2.5 pl-3 pr-4 text-sm outline-none focus:border-emerald-500"
+              className="w-full bg-white border border-gray-300 rounded-md py-2.5 pl-3 pr-8 text-sm outline-none focus:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-500/20"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 text-xs"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           {filteredProducts.length === 0 ? (
-            <div className="bg-white p-4 text-center rounded-md border border-gray-200">
-              <p className="font-medium text-gray-700">Bahan tidak ditemukan</p>
+            <div className="bg-white p-6 text-center rounded-md border border-gray-200">
+              <p className="font-medium text-gray-700 text-sm">Bahan tidak ditemukan</p>
               <p className="text-xs text-gray-400 mt-1">Coba kata kunci pencarian lainnya.</p>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="mt-2 text-xs font-medium text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
+                >
+                  Bersihkan pencarian
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -332,7 +377,7 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
         </div>
 
         {/* Sidebar Keranjang Belanja (Sticky) */}
-        <div className="h-fit space-y-4">
+        <div className="h-fit space-y-4 lg:sticky lg:top-20">
           <div className="bg-white p-4 rounded-md border border-gray-200 space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
               <h2 className="font-bold text-gray-900 text-sm">

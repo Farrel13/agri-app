@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   addProductAction,
   updateProductFarmerAction,
   deleteProductFarmerAction,
 } from "./actions";
 import { compressImage } from "@/lib/compressImage";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface Product {
   id: string;
@@ -50,6 +51,14 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editImage, setEditImage] = useState<File | null>(null);
   const [editPreview, setEditPreview] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -141,13 +150,13 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
     }
   };
 
-  const handleDelete = async (productId: string, productName: string) => {
-    if (!confirm(`Yakin ingin menghapus panen "${productName}"?`)) return;
+  const handleDelete = async (productId: string) => {
     setLoading(true);
     setMessage(null);
 
     const res = await deleteProductFarmerAction(productId);
     setLoading(false);
+    setDeleteTarget(null);
 
     if (res.success) {
       setMessage({ type: "success", text: res.message });
@@ -178,13 +187,21 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
       {/* Pesan Feedback */}
       {message && (
         <div
-          className={`p-4 rounded-md text-sm font-medium border ${
+          className={`p-3.5 rounded-md text-xs font-medium border flex items-center justify-between gap-3 animate-in fade-in duration-150 ${
             message.type === "success"
-              ? "bg-white text-emerald-700 border-emerald-300"
-              : "bg-white text-rose-700 border-rose-300"
+              ? "bg-emerald-50/70 text-emerald-800 border-emerald-200"
+              : "bg-rose-50/70 text-rose-800 border-rose-200"
           }`}
         >
-          {message.text}
+          <span>{message.text}</span>
+          <button
+            type="button"
+            onClick={() => setMessage(null)}
+            className="text-gray-400 hover:text-gray-600 p-1 text-xs cursor-pointer"
+            title="Tutup"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -211,7 +228,7 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
           <p className="text-xl font-bold text-gray-900 mt-1">{stats.totalSoldUnits} Unit</p>
         </div>
 
-        <div className="bg-white p-4 rounded-md border border-gray-200">
+        <div className="bg-white p-4 rounded-md border border-gray-200 border-l-4 border-l-emerald-500">
           <span className="text-xs font-medium text-gray-500 block">
             Estimasi Saldo / Omzet
           </span>
@@ -331,8 +348,8 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
           </div>
 
           {products.length === 0 ? (
-            <div className="bg-white p-4 rounded-md border border-gray-200 text-center">
-              <p className="font-medium text-gray-700">Belum ada panen yang didaftarkan</p>
+            <div className="bg-white p-6 rounded-md border border-gray-200 text-center">
+              <p className="font-medium text-gray-700 text-sm">Belum ada panen yang didaftarkan</p>
               <p className="text-xs text-gray-400 mt-1">
                 Isi form di samping untuk mengunggah komoditas hasil tani Anda.
               </p>
@@ -417,8 +434,8 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
                         Edit Panen
                       </button>
                       <button
-                        onClick={() => handleDelete(item.id, item.name)}
-                        className="py-1.5 px-3 text-xs font-medium text-rose-500 bg-white border border-gray-200 hover:bg-gray-50 rounded-md transition cursor-pointer"
+                        onClick={() => setDeleteTarget({ id: item.id, name: item.name })}
+                        className="py-1.5 px-3 text-xs font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 rounded-md transition cursor-pointer"
                       >
                         Hapus
                       </button>
@@ -430,6 +447,21 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
           )}
         </div>
       </div>
+
+      {/* Dialog Konfirmasi Hapus */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="Hapus Hasil Panen?"
+        description={`Komoditas "${deleteTarget?.name}" akan dihapus dari daftar panen Anda secara permanen.`}
+        confirmText="Hapus Panen"
+        cancelText="Batal"
+        isDanger
+        isLoading={loading}
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget.id);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       {/* Modal Edit Panen */}
       {editingProduct && (

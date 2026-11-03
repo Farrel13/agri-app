@@ -30,11 +30,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-4 rounded-md w-full max-w-md border border-gray-200">
-        <h1 className="text-xl font-bold text-center mb-4 text-gray-800">Masuk ke AgriApp</h1>
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 py-12 px-4">
+      <div className="bg-white p-6 sm:p-8 rounded-xl w-full max-w-md border border-slate-200 shadow-xs space-y-4">
+        <div>
+          <h1 className="text-xl font-bold text-center text-gray-900">Masuk ke AgriApp</h1>
+          <p className="text-xs text-center text-gray-500 mt-1">Platform rantai pasok pangan digital</p>
+        </div>
 
-        {error && <div className="bg-white text-rose-500 p-3 rounded-md mb-4 text-sm border border-rose-300">{error}</div>}
+        {error && <div className="bg-rose-50/80 text-rose-700 p-3 rounded-md text-xs border border-rose-200">{error}</div>}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>

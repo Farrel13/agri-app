@@ -6,6 +6,7 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
 } from "@/lib/notification-actions";
+import { formatRelativeTime } from "@/lib/formatters";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -148,12 +149,7 @@ export default function NotificationBell() {
                     </div>
                     <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">{notif.message}</p>
                     <span className="text-[10px] text-gray-400 mt-1 block">
-                      {new Date(notif.createdAt).toLocaleString("id-ID", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {formatRelativeTime(notif.createdAt)}
                     </span>
                   </div>
                 </div>
