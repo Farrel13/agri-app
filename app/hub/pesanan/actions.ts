@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
+import { OrderStatus } from "@prisma/client";
 
-export async function updateOrderStatusAction(orderId: string, status: any) {
+export async function updateOrderStatusAction(orderId: string, status: OrderStatus | string) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "HUB") {
@@ -23,7 +24,7 @@ export async function updateOrderStatusAction(orderId: string, status: any) {
 
     await prisma.order.update({
       where: { id: orderId },
-      data: { status },
+      data: { status: status as OrderStatus },
     });
 
     // Buat notifikasi otomatis ke Restoran pembeli

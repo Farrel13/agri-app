@@ -180,7 +180,7 @@ export async function checkServerActionRateLimit(
   identifier: string,
   maxRequests = 10,
   windowMs = 60 * 1000
-): Promise<{ allowed: boolean; message?: string }> {
+): Promise<{ allowed: true } | { allowed: false; message: string }> {
   const key = `action_${actionName}_${identifier}`;
   const check = await checkRateLimit(key, maxRequests, windowMs);
   if (!check.success) {

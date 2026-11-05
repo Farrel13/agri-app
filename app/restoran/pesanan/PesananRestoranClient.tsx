@@ -53,7 +53,11 @@ interface OrderData {
   items: OrderItem[];
 }
 
-export default function PesananRestoranClient({ initialOrders }: { initialOrders: any[] }) {
+interface PesananRestoranClientProps {
+  initialOrders: OrderData[];
+}
+
+export default function PesananRestoranClient({ initialOrders }: PesananRestoranClientProps) {
   const [orders, setOrders] = useState<OrderData[]>(initialOrders);
 
   // State Modal Pembayaran (Mock Payment Gateway)
@@ -87,11 +91,6 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
       return () => clearTimeout(timer);
     }
   }, [msg]);
-
-  const isImageValid = (imageUrl?: string | null, expiresAt?: Date | string | null) => {
-    if (!imageUrl || !expiresAt) return false;
-    return new Date(expiresAt).getTime() > Date.now();
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -144,7 +143,7 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
     setIsProcessingPayment(false);
 
     if (res.success) {
-      setMsg({ text: res.message, success: true });
+      setMsg({ text: res.message || "Pembayaran berhasil diverifikasi!", success: true });
       setOrders((prev) =>
         prev.map((o) =>
           o.id === payingOrder.id
@@ -162,7 +161,7 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
       );
       setPayingOrder(null);
     } else {
-      setMsg({ text: res.message, success: false });
+      setMsg({ text: res.message || "Gagal memproses pembayaran.", success: false });
     }
   };
 
@@ -204,7 +203,7 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
     setSubmittingComplete(false);
 
     if (res.success) {
-      setMsg({ text: res.message, success: true });
+      setMsg({ text: res.message || "Pesanan berhasil diselesaikan!", success: true });
       setOrders((prev) =>
         prev.map((o) =>
           o.id === completingOrder.id ? { ...o, status: "SELESAI", receivedAt: new Date() } : o
@@ -215,7 +214,7 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
       setReceivePreview(null);
       setReceiveNotes("");
     } else {
-      setMsg({ text: res.message, success: false });
+      setMsg({ text: res.message || "Gagal menyelesaikan pesanan.", success: false });
     }
   };
 
@@ -234,12 +233,12 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
     setIsSubmittingReview(false);
 
     if (res.success) {
-      setMsg({ text: res.message, success: true });
+      setMsg({ text: res.message || "Ulasan berhasil dikirim!", success: true });
       setReviewingProductId(null);
       setComment("");
       setRating(5);
     } else {
-      setMsg({ text: res.message, success: false });
+      setMsg({ text: res.message || "Gagal mengirim ulasan.", success: false });
     }
   };
 
@@ -325,7 +324,12 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
                       <button
                         onClick={() => {
                           setPayingOrder(ord);
-                          setPaymentMethod((ord.payment?.method as any) || "QRIS");
+                          const method = ord.payment?.method;
+                          if (method === "QRIS" || method === "TRANSFER_BANK" || method === "E_WALLET") {
+                            setPaymentMethod(method);
+                          } else {
+                            setPaymentMethod("QRIS");
+                          }
                         }}
                         className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-md text-xs cursor-pointer"
                       >
@@ -699,6 +703,7 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
                 />
                 {receivePreview && (
                   <div className="mt-2 h-28 w-full rounded-md overflow-hidden border border-gray-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={receivePreview} alt="Preview Terima" className="w-full h-full object-cover" />
                   </div>
                 )}

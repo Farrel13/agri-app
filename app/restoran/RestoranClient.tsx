@@ -187,10 +187,10 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
 
     setLoading(false);
     if (res.success) {
-      setMessage({ type: "success", text: res.message });
+      setMessage({ type: "success", text: res.message || "Pesanan berhasil dibuat!" });
       updateCartAndPersist([]); // Bersihkan keranjang
     } else {
-      setMessage({ type: "error", text: res.message });
+      setMessage({ type: "error", text: res.message || "Gagal membuat pesanan." });
     }
   };
 

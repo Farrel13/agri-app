@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
 import { checkServerActionRateLimit } from "@/lib/rate-limit";
+import { Address } from "@prisma/client";
 
 export interface CartItemInput {
   productId: string;
@@ -18,8 +19,25 @@ export interface PlaceOrderPayload {
   paymentMethod?: "QRIS" | "TRANSFER_BANK" | "E_WALLET" | "COD";
 }
 
+export interface PlaceOrderResult {
+  success: boolean;
+  message: string;
+  orderNumbers?: string[];
+}
+
+export interface SimulatePaymentResult {
+  success: boolean;
+  message: string;
+}
+
+export interface AddAddressResult {
+  success: boolean;
+  message: string;
+  address?: Address;
+}
+
 // 1. Checkout dengan Split Order otomatis per Toko Hub
-export async function placeOrderAction(payload: PlaceOrderPayload) {
+export async function placeOrderAction(payload: PlaceOrderPayload): Promise<PlaceOrderResult> {
   try {
     const session = await getServerSession(authOptions);
 
@@ -198,7 +216,7 @@ export async function placeOrderAction(payload: PlaceOrderPayload) {
 export async function simulatePaymentAction(
   orderId: string,
   method: "QRIS" | "TRANSFER_BANK" | "E_WALLET"
-) {
+): Promise<SimulatePaymentResult> {
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "RESTAURANT") {
@@ -262,7 +280,7 @@ export async function simulatePaymentAction(
 }
 
 // 3. Tambah Alamat Baru untuk Restoran
-export async function addRestaurantAddressAction(formData: FormData) {
+export async function addRestaurantAddressAction(formData: FormData): Promise<AddAddressResult> {
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "RESTAURANT") {

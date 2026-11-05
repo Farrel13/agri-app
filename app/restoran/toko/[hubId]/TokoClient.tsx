@@ -103,10 +103,10 @@ export default function TokoClient({ hubUser, products }: TokoClientProps) {
 
     setLoading(false);
     if (res.success) {
-      setMessage({ type: "success", text: res.message });
+      setMessage({ type: "success", text: res.message || "Pesanan berhasil dibuat!" });
       setCart([]);
     } else {
-      setMessage({ type: "error", text: res.message });
+      setMessage({ type: "error", text: res.message || "Gagal membuat pesanan." });
     }
   };
 
