@@ -99,6 +99,11 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<Plac
     const defaultHub = await prisma.user.findFirst({ where: { role: "HUB" } });
 
     for (const item of items) {
+      // Validasi ketat kuantitas: harus bilangan bulat positif > 0 untuk mencegah Integer Manipulation
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0 || item.quantity > 100000) {
+        throw new Error("Jumlah pesanan (kuantitas) harus berupa bilangan bulat positif yang valid.");
+      }
+
       const product = productMap.get(item.productId);
       if (!product) {
         throw new Error("Satu atau lebih produk tidak ditemukan.");
@@ -236,6 +241,13 @@ export async function simulatePaymentAction(
 
     if (!order || order.buyerId !== session.user.id) {
       return { success: false, message: "Pesanan tidak ditemukan." };
+    }
+
+    if (order.status !== "MENUNGGU_PEMBAYARAN" || order.payment?.status === "LUNAS") {
+      return {
+        success: false,
+        message: "Pesanan ini sudah dibayar atau tidak dalam status menunggu pembayaran.",
+      };
     }
 
     // Update status pembayaran menjadi LUNAS dan pesanan menjadi DIPROSES_HUB

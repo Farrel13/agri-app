@@ -22,6 +22,22 @@ export async function verifyProductAction(formData: FormData) {
       return { success: false, message: "Harga jual toko harus diisi dengan benar." };
     }
 
+    // Cegah IDOR / Pembajakan produk yang sudah diverifikasi oleh Toko Hub lain
+    const existing = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!existing) {
+      return { success: false, message: "Produk panen tidak ditemukan." };
+    }
+
+    if (existing.isVerified && existing.verifiedById && existing.verifiedById !== session.user.id) {
+      return {
+        success: false,
+        message: "Produk ini sudah diverifikasi oleh toko Hub lain.",
+      };
+    }
+
     await prisma.product.update({
       where: { id: productId },
       data: {

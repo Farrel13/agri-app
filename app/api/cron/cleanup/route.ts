@@ -8,10 +8,19 @@ import { cleanupExpiredImages } from "@/lib/cleanup";
  */
 export async function GET(request: Request) {
   try {
-    // Opsional: Cek Authorization / CRON_SECRET jika diperlukan di production
+    // Proteksi Otorisasi: Wajibkan Bearer CRON_SECRET jika di production atau jika env diset
+    const cronSecret = process.env.CRON_SECRET;
     const authHeader = request.headers.get("authorization");
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ message: "Unauthorized cron execution" }, { status: 401 });
+
+    if (process.env.NODE_ENV === "production" && !cronSecret) {
+      return NextResponse.json(
+        { message: "CRON_SECRET belum dikonfigurasi di environment server." },
+        { status: 500 }
+      );
+    }
+
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ message: "Akses cron ditolak (Unauthorized)." }, { status: 401 });
     }
 
     await cleanupExpiredImages();

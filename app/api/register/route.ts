@@ -37,6 +37,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Semua data akun wajib diisi." }, { status: 400 });
     }
 
+    // Cegah Privilege Escalation: Hanya role PETANI, HUB, atau RESTAURANT yang boleh didaftarkan ke publik
+    const ALLOWED_PUBLIC_ROLES = ["PETANI", "HUB", "RESTAURANT"];
+    if (!ALLOWED_PUBLIC_ROLES.includes(role)) {
+      logSecurityEvent({
+        level: "SECURITY_ALERT",
+        action: "PRIVILEGE_ESCALATION_ATTEMPT",
+        ip: clientIp,
+        details: { attemptedRole: role, username, email },
+      });
+      return NextResponse.json(
+        { message: "Pilihan peran (role) pendaftaran tidak valid." },
+        { status: 400 }
+      );
+    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json({ message: "Format email tidak valid." }, { status: 400 });
