@@ -1,9 +1,25 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { logSecurityEvent } from "@/lib/security-logger";
 
 export async function POST(request: Request) {
   try {
+    // Rate Limiting: Maksimal 5 registrasi per 60 detik per IP
+    const clientIp = getClientIp(request);
+    const rateCheck = await checkRateLimit(`register_${clientIp}`, 5, 60 * 1000);
+
+    if (!rateCheck.success) {
+      logSecurityEvent({
+        level: "WARN",
+        action: "REGISTER_RATE_LIMIT_EXCEEDED",
+        ip: clientIp,
+        details: { endpoint: "/api/register" },
+      });
+      return rateLimitResponse("Terlalu banyak permintaan pendaftaran. Silakan coba lagi setelah 1 menit.");
+    }
+
     const {
       name,
       email,

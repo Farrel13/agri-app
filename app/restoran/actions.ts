@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
+import { checkServerActionRateLimit } from "@/lib/rate-limit";
 
 export interface CartItemInput {
   productId: string;
@@ -24,6 +25,12 @@ export async function placeOrderAction(payload: PlaceOrderPayload) {
 
     if (!session || session.user.role !== "RESTAURANT") {
       return { success: false, message: "Akses tidak diizinkan." };
+    }
+
+    // Rate limiting: cegah spam checkout / order (maks 10 per menit)
+    const rateCheck = await checkServerActionRateLimit("place_order", session.user.id, 10, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
     }
 
     const { items, addressId, notes, paymentMethod = "QRIS" } = payload;
@@ -198,6 +205,12 @@ export async function simulatePaymentAction(
       return { success: false, message: "Akses tidak diizinkan." };
     }
 
+    // Rate limiting: cegah spam stimulasi pembayaran (maks 10 per menit)
+    const rateCheck = await checkServerActionRateLimit("simulate_payment", session.user.id, 10, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
+    }
+
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { payment: true, hub: true },
@@ -254,6 +267,12 @@ export async function addRestaurantAddressAction(formData: FormData) {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "RESTAURANT") {
       return { success: false, message: "Akses tidak diizinkan." };
+    }
+
+    // Rate limiting: cegah spam penambahan alamat (maks 10 per menit)
+    const rateCheck = await checkServerActionRateLimit("add_address", session.user.id, 10, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
     }
 
     const label = (formData.get("label") as string)?.trim() || "Dapur Cabang";

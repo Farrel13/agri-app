@@ -5,6 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ensureHubOwnership } from "@/lib/hubSync";
+import { cleanupExpiredImages } from "@/lib/cleanup";
 import HubClient from "./HubClient";
 
 export default async function DashboardHub() {
@@ -18,10 +19,13 @@ export default async function DashboardHub() {
     redirect("/");
   }
 
-  // 1. Sinkronkan kepemilikan data lama
+  // 1. Bersihkan produk & foto kadaluarsa (> 24 jam)
+  await cleanupExpiredImages();
+
+  // 2. Sinkronkan kepemilikan data lama
   await ensureHubOwnership();
 
-  // 2. Ambil antrean panen masuk per hari dari petani (belum diverifikasi)
+  // 3. Ambil antrean panen masuk per hari dari petani (belum diverifikasi)
   const unverifiedProducts = await prisma.product.findMany({
     where: { isVerified: false },
     include: {

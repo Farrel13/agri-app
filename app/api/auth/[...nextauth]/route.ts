@@ -49,7 +49,7 @@ export const authOptions: NextAuthOptions = {
         const rateKey = `auth_${credentials.username}_${Array.isArray(ip) ? ip[0] : ip}`;
         
         // Batasi maksimal 5 percobaan login gagal per 60 detik (OWASP A07)
-        const rateCheck = checkRateLimit(rateKey, 5, 60 * 1000);
+        const rateCheck = await checkRateLimit(rateKey, 5, 60 * 1000);
         if (!rateCheck.success) {
           logSecurityEvent({
             level: "SECURITY_ALERT",

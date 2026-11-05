@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { cleanupExpiredImages } from "@/lib/cleanup";
 import PetaniClient from "./PetaniClient";
 
 export default async function DashboardPetani() {
@@ -16,6 +17,9 @@ export default async function DashboardPetani() {
   if (session.user.role !== "PETANI") {
     redirect("/");
   }
+
+  // Bersihkan produk/foto yang sudah kadaluarsa (> 24 jam)
+  await cleanupExpiredImages();
 
   // Ambil data produk petani beserta data Hub yang memverifikasi dan riwayat penjualan
   const rawProducts = await prisma.product.findMany({

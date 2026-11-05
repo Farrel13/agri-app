@@ -32,7 +32,8 @@ export async function tambahPanen(data: TambahPanenInput) {
       return { success: false, message: "Mohon isi semua data panen dengan benar." };
     }
 
-    const imageExpiresAt = imageUrl ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null;
+    // Setiap produk panen memiliki batas kadaluarsa 24 jam
+    const imageExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     await prisma.product.create({
       data: {

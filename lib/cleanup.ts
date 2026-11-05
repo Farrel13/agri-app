@@ -3,24 +3,28 @@ import { unlink } from "fs/promises";
 import path from "path";
 
 /**
- * Membersihkan file foto yang umurnya sudah melewati batas 24 jam.
- * 1. Foto panen Product (imageUrl & imageExpiresAt)
- * 2. Foto bukti penerimaan barang Order (receivedImageUrl & receivedImageExpiresAt)
+ * Membersihkan data yang sudah kadaluarsa melewati batas 24 jam:
+ * 2. Membersihkan foto bukti penerimaan barang Order (> 24 jam).
  */
 export async function cleanupExpiredImages() {
   try {
     const now = new Date();
 
-    // 1. Bersihkan foto produk hasil panen expired
+    // 1. Cari produk hasil panen yang sudah kadaluarsa (> 24 jam)
     const expiredProducts = await prisma.product.findMany({
       where: {
-        imageUrl: { not: null },
         imageExpiresAt: { lte: now },
       },
-      select: { id: true, imageUrl: true },
+      include: {
+        orderItems: true,
+      },
     });
 
+    const idsToDelete: string[] = [];
+    const idsToArchive: string[] = [];
+
     for (const item of expiredProducts) {
+      // Hapus file fisik di public/uploads jika ada
       if (item.imageUrl && item.imageUrl.startsWith("/uploads/")) {
         const filename = item.imageUrl.replace("/uploads/", "");
         const filePath = path.join(process.cwd(), "public", "uploads", filename);
@@ -28,12 +32,28 @@ export async function cleanupExpiredImages() {
           await unlink(filePath);
         } catch {}
       }
+
+      // Jika belum ada riwayat order, hapus card sepenuhnya dari database
+      if (!item.orderItems || item.orderItems.length === 0) {
+        idsToDelete.push(item.id);
+      } else {
+        // Jika sudah ada riwayat order, hapus foto dan arsipkan stok agar foreign key tidak error
+        idsToArchive.push(item.id);
+      }
     }
 
-    if (expiredProducts.length > 0) {
+    // Hapus card produk yang sudah kadaluarsa
+    if (idsToDelete.length > 0) {
+      await prisma.product.deleteMany({
+        where: { id: { in: idsToDelete } },
+      });
+    }
+
+    // Kosongkan foto dan arsipkan produk yang memiliki riwayat transaksi
+    if (idsToArchive.length > 0) {
       await prisma.product.updateMany({
-        where: { id: { in: expiredProducts.map((p) => p.id) } },
-        data: { imageUrl: null, imageExpiresAt: null },
+        where: { id: { in: idsToArchive } },
+        data: { imageUrl: null, imageExpiresAt: null, stock: 0 },
       });
     }
 
@@ -63,6 +83,6 @@ export async function cleanupExpiredImages() {
       });
     }
   } catch (error) {
-    console.error("Gagal membersihkan foto expired:", error);
+    console.error("Gagal menjalankan pembersihan data expired (>24 jam):", error);
   }
 }

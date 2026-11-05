@@ -1,13 +1,9 @@
-/**
- * Mengompres file gambar di sisi browser (Client-side) sebelum diunggah ke Server Action.
- * Menjamin ukuran gambar di bawah batasan upload (< 1 MB, biasanya turun jadi 100-300 KB)
- * tanpa mengurangi kualitas visual yang signifikan.
- */
+
 export async function compressImage(
   file: File,
-  maxWidth: number = 1200,
-  maxHeight: number = 1200,
-  quality: number = 0.75
+  maxWidth: number = 800,
+  maxHeight: number = 800,
+  quality: number = 0.7
 ): Promise<File> {
   // Jika file bukan gambar, kembalikan langsung
   if (!file.type.startsWith("image/")) {

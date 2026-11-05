@@ -172,7 +172,7 @@ export default function PesananRestoranClient({ initialOrders }: { initialOrders
     if (file) {
       try {
         setCompressing(true);
-        const compressed = await compressImage(file, 1200, 1200, 0.75);
+        const compressed = await compressImage(file, 800, 800, 0.7);
         setReceiveImage(compressed);
         setReceivePreview(URL.createObjectURL(compressed));
       } catch (err) {
