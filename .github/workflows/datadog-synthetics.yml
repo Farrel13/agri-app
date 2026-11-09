@@ -14,12 +14,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Datadog Synthetics Tests
-        uses: DataDog/synthetics-ci-github-action@v1
+        # Perbaikan: Menggunakan versi rilis stabil resmi dari Datadog Marketplace
+        uses: DataDog/synthetics-ci-github-action@v4.1.1
         with:
           api-key: ${{ secrets.DD_API_KEY }}
           app-key: ${{ secrets.DD_APP_KEY }}
           datadog-site: "ap1.datadoghq.com"
         env:
-          # WAJIB ADA: Memaksa server GitHub mendaftarkan kunci ke sistem inti Datadog-CI
           DATADOG_API_KEY: ${{ secrets.DD_API_KEY }}
           DATADOG_APP_KEY: ${{ secrets.DD_APP_KEY }}
