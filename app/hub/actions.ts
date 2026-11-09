@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
 import { validateImageBuffer } from "@/lib/file-validator";
+import { checkServerActionRateLimit } from "@/lib/rate-limit";
 
 // Verifikasi hasil panen petani oleh toko Hub
 export async function verifyProductAction(formData: FormData) {
@@ -12,6 +13,11 @@ export async function verifyProductAction(formData: FormData) {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "HUB") {
       return { success: false, message: "Akses tidak diizinkan." };
+    }
+
+    const rateCheck = await checkServerActionRateLimit("verify_product", session.user.id, 15, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
     }
 
     const productId = formData.get("productId") as string;
@@ -65,6 +71,11 @@ export async function updateStoreProductAction(formData: FormData) {
       return { success: false, message: "Akses tidak diizinkan." };
     }
 
+    const rateCheck = await checkServerActionRateLimit("update_store_product", session.user.id, 15, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
+    }
+
     const productId = formData.get("productId") as string;
     const priceHub = Number(formData.get("priceHub"));
     const stock = Number(formData.get("stock"));
@@ -90,7 +101,7 @@ export async function updateStoreProductAction(formData: FormData) {
     if (file && file.size > 0 && typeof file.arrayBuffer === "function") {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      const validation = validateImageBuffer(buffer, 3 * 1024 * 1024);
+      const validation = validateImageBuffer(buffer, 1.5 * 1024 * 1024);
       if (!validation.isValid) {
         return { success: false, message: validation.error || "Berkas gambar ditolak." };
       }

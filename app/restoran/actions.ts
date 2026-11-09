@@ -140,11 +140,18 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<Plac
           const subtotal = price * quantity;
           totalAmount += subtotal;
 
-          // Kurangi stok produk secara atomik
-          await tx.product.update({
-            where: { id: product.id },
+          // Kurangi stok produk secara atomik dengan syarat stok mencukupi (Cegah Race Condition)
+          const updateResult = await tx.product.updateMany({
+            where: {
+              id: product.id,
+              stock: { gte: quantity },
+            },
             data: { stock: { decrement: quantity } },
           });
+
+          if (updateResult.count === 0) {
+            throw new Error(`STOK_HABIS:${product.name}`);
+          }
 
           orderItemsData.push({
             productId: product.id,
@@ -212,8 +219,29 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<Plac
     };
   } catch (error) {
     console.error("Gagal membuat pesanan:", error);
-    const errorMessage = error instanceof Error ? error.message : "Gagal memproses pesanan.";
-    return { success: false, message: errorMessage };
+    if (error instanceof Error) {
+      if (error.message.startsWith("STOK_HABIS:")) {
+        const prodName = error.message.replace("STOK_HABIS:", "");
+        return {
+          success: false,
+          message: `Stok untuk "${prodName}" baru saja habis atau tidak mencukupi permintaan Anda.`,
+        };
+      }
+      const safeValidationErrors = [
+        "Keranjang belanja kosong",
+        "Jumlah pesanan (kuantitas)",
+        "Satu atau lebih produk tidak ditemukan",
+        "belum memiliki toko Hub",
+      ];
+      if (safeValidationErrors.some((v) => error.message.includes(v))) {
+        return { success: false, message: error.message };
+      }
+    }
+    // Pesan aman default untuk mencegah kebocoran informasi database/Prisma
+    return {
+      success: false,
+      message: "Terjadi kesalahan saat memproses pesanan Anda. Silakan coba beberapa saat lagi.",
+    };
   }
 }
 

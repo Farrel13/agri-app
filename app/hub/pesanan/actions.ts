@@ -5,6 +5,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
 import { OrderStatus } from "@prisma/client";
+import { checkServerActionRateLimit } from "@/lib/rate-limit";
+
+// Matriks Transisi Status yang Sah (State Machine)
+const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  MENUNGGU_PEMBAYARAN: [OrderStatus.DIPROSES_HUB, OrderStatus.DIBATALKAN],
+  DIPROSES_HUB: [OrderStatus.DIKIRIM, OrderStatus.DIBATALKAN],
+  DIKIRIM: [OrderStatus.SELESAI],
+  SELESAI: [], // Status final
+  DIBATALKAN: [], // Status final
+};
 
 export async function updateOrderStatusAction(orderId: string, status: OrderStatus | string) {
   try {
@@ -13,26 +23,61 @@ export async function updateOrderStatusAction(orderId: string, status: OrderStat
       return { success: false, message: "Akses tidak diizinkan." };
     }
 
+    const rateCheck = await checkServerActionRateLimit("update_order_status", session.user.id, 20, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
+    }
+
+    const targetStatus = status as OrderStatus;
+    if (!Object.values(OrderStatus).includes(targetStatus)) {
+      return { success: false, message: "Pilihan status pesanan tidak valid." };
+    }
+
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { buyer: true },
+      include: { buyer: true, items: true },
     });
 
     if (!order || order.hubId !== session.user.id) {
       return { success: false, message: "Pesanan tidak ditemukan atau bukan milik tokomu." };
     }
 
-    await prisma.order.update({
-      where: { id: orderId },
-      data: { status: status as OrderStatus },
-    });
+    // Validasi alur transisi status pesanan (Cegah bypass alur pemesanan)
+    const allowedTransitions = VALID_TRANSITIONS[order.status] || [];
+    if (!allowedTransitions.includes(targetStatus)) {
+      return {
+        success: false,
+        message: `Status pesanan tidak dapat diubah dari "${order.status}" menjadi "${targetStatus}".`,
+      };
+    }
+
+    // Jika pesanan dibatalkan, kembalikan stok produk secara otomatis
+    if (targetStatus === OrderStatus.DIBATALKAN) {
+      await prisma.$transaction(async (tx) => {
+        for (const item of order.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          });
+        }
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: targetStatus },
+        });
+      });
+    } else {
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { status: targetStatus },
+      });
+    }
 
     // Buat notifikasi otomatis ke Restoran pembeli
     await prisma.notification.create({
       data: {
         userId: order.buyerId,
-        title: `Status Pesanan Diperbarui (${status})`,
-        message: `Pesanan #${order.orderNumber} kamu kini berstatus: ${status}.`,
+        title: `Status Pesanan Diperbarui (${targetStatus})`,
+        message: `Pesanan #${order.orderNumber} kamu kini berstatus: ${targetStatus}.`,
         type: "STATUS_PESANAN",
         linkUrl: "/restoran/pesanan",
       },
@@ -40,7 +85,7 @@ export async function updateOrderStatusAction(orderId: string, status: OrderStat
 
     revalidatePath("/hub/pesanan");
     revalidatePath("/restoran/pesanan");
-    return { success: true, message: `Status pesanan #${order.orderNumber} berhasil diubah ke ${status}.` };
+    return { success: true, message: `Status pesanan #${order.orderNumber} berhasil diubah ke ${targetStatus}.` };
   } catch (error) {
     console.error("Gagal update status pesanan:", error);
     return { success: false, message: "Gagal memperbarui status pesanan." };
@@ -68,6 +113,14 @@ export async function dispatchOrderAction(formData: FormData) {
 
     if (!order || order.hubId !== session.user.id) {
       return { success: false, message: "Pesanan tidak ditemukan." };
+    }
+
+    // Hanya izinkan pengiriman jika barang sudah berstatus DIPROSES_HUB
+    if (order.status !== "DIPROSES_HUB") {
+      return {
+        success: false,
+        message: `Hanya pesanan yang sedang diproses (DIPROSES_HUB) yang dapat dikirim. Status saat ini: "${order.status}".`,
+      };
     }
 
     await prisma.order.update({
@@ -115,6 +168,14 @@ export async function verifyOrderPaymentAction(orderId: string) {
 
     if (!order || order.hubId !== session.user.id) {
       return { success: false, message: "Pesanan tidak ditemukan." };
+    }
+
+    // Hanya izinkan verifikasi jika status masih MENUNGGU_PEMBAYARAN
+    if (order.status !== "MENUNGGU_PEMBAYARAN" || order.payment?.status === "LUNAS") {
+      return {
+        success: false,
+        message: "Pesanan ini sudah tidak dalam status menunggu verifikasi pembayaran.",
+      };
     }
 
     await prisma.payment.update({

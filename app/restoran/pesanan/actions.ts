@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
 import { validateImageBuffer } from "@/lib/file-validator";
+import { checkServerActionRateLimit } from "@/lib/rate-limit";
 
 // Restoran mengonfirmasi barang diterima & upload foto bukti penerimaan (berlaku 24 jam)
 export async function completeOrderAction(formData: FormData) {
@@ -12,6 +13,12 @@ export async function completeOrderAction(formData: FormData) {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "RESTAURANT") {
       return { success: false, message: "Akses tidak diizinkan." };
+    }
+
+    // Rate limiting: batasi konfirmasi penerimaan pesanan
+    const rateCheck = await checkServerActionRateLimit("complete_order", session.user.id, 10, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
     }
 
     const orderId = formData.get("orderId") as string;
@@ -92,12 +99,51 @@ export async function createProductReviewAction(formData: FormData) {
       return { success: false, message: "Akses tidak diizinkan." };
     }
 
+    // Rate limiting: cegah spam ulasan (maks 5 review per menit)
+    const rateCheck = await checkServerActionRateLimit("create_review", session.user.id, 5, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
+    }
+
     const productId = formData.get("productId") as string;
-    const rating = Number(formData.get("rating"));
-    const comment = (formData.get("comment") as string)?.trim() || "";
+    const rating = Math.floor(Number(formData.get("rating")));
+    const comment = (formData.get("comment") as string)?.trim().slice(0, 500) || "";
 
     if (!productId || isNaN(rating) || rating < 1 || rating > 5) {
       return { success: false, message: "Rating harus antara 1-5 bintang." };
+    }
+
+    // 1. Verifikasi Transaksi: Hanya boleh mereview produk yang sudah pernah dibeli dan berstatus SELESAI
+    const hasPurchased = await prisma.orderItem.findFirst({
+      where: {
+        productId,
+        order: {
+          buyerId: session.user.id,
+          status: "SELESAI",
+        },
+      },
+    });
+
+    if (!hasPurchased) {
+      return {
+        success: false,
+        message: "Anda hanya dapat memberikan ulasan untuk produk yang sudah pernah Anda beli dan terima (pesanan SELESAI).",
+      };
+    }
+
+    // 2. Cegah spam / ulasan ganda untuk produk yang sama oleh user yang sama
+    const existingReview = await prisma.review.findFirst({
+      where: {
+        userId: session.user.id,
+        productId,
+      },
+    });
+
+    if (existingReview) {
+      return {
+        success: false,
+        message: "Anda sudah pernah memberikan ulasan untuk produk ini.",
+      };
     }
 
     await prisma.review.create({

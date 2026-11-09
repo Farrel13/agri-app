@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
 import { validateImageBuffer } from "@/lib/file-validator";
+import { checkServerActionRateLimit } from "@/lib/rate-limit";
 
 export interface TambahPanenInput {
   name: string;
@@ -59,6 +60,17 @@ export async function tambahPanen(data: TambahPanenInput) {
 
 // 2. Menerima FormData dengan uji forensik biner
 export async function addProductAction(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== "PETANI") {
+    return { success: false, message: "Akses tidak diizinkan." };
+  }
+
+  // Rate limiting: cegah spam pendaftaran panen & upload masif
+  const rateCheck = await checkServerActionRateLimit("add_product", session.user.id, 5, 60 * 1000);
+  if (!rateCheck.allowed) {
+    return { success: false, message: rateCheck.message };
+  }
+
   const name = formData.get("name") as string;
   const stock = Number(formData.get("stock"));
   const unit = formData.get("unit") as string;
@@ -72,7 +84,8 @@ export async function addProductAction(formData: FormData) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      const validation = validateImageBuffer(buffer, 3 * 1024 * 1024);
+      // Batasi 1.5MB untuk mencegah pembengkakan database (database bloat)
+      const validation = validateImageBuffer(buffer, 1.5 * 1024 * 1024);
       if (!validation.isValid) {
         return {
           success: false,
@@ -104,6 +117,11 @@ export async function updateProductFarmerAction(formData: FormData) {
       return { success: false, message: "Akses tidak diizinkan." };
     }
 
+    const rateCheck = await checkServerActionRateLimit("update_product", session.user.id, 10, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
+    }
+
     const productId = formData.get("productId") as string;
     const name = (formData.get("name") as string)?.trim();
     const stock = Number(formData.get("stock"));
@@ -129,7 +147,7 @@ export async function updateProductFarmerAction(formData: FormData) {
     if (file && file.size > 0 && typeof file.arrayBuffer === "function") {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      const validation = validateImageBuffer(buffer, 3 * 1024 * 1024);
+      const validation = validateImageBuffer(buffer, 1.5 * 1024 * 1024);
       if (!validation.isValid) {
         return { success: false, message: validation.error || "Gambar ditolak." };
       }
@@ -173,6 +191,11 @@ export async function deleteProductFarmerAction(productId: string) {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "PETANI") {
       return { success: false, message: "Akses tidak diizinkan." };
+    }
+
+    const rateCheck = await checkServerActionRateLimit("delete_product", session.user.id, 10, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
     }
 
     const existing = await prisma.product.findUnique({

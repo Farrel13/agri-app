@@ -134,20 +134,40 @@ export async function checkRateLimit(
 }
 
 /**
- * Helper untuk mengambil IP client dari request headers
+ * Helper untuk mengambil IP client dari request headers secara aman di lingkungan cloud (Vercel, Cloudflare, Reverse Proxy)
  */
-export function getClientIp(request?: Request | Headers | null): string {
+export function getClientIp(
+  request?: Request | Headers | Record<string, string | string[] | undefined> | null
+): string {
   if (!request) return "127.0.0.1";
 
-  const headers = request instanceof Request ? request.headers : request;
-  const forwardedFor = headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0].trim();
-  }
+  const getHeader = (key: string): string | null => {
+    if (request instanceof Request) {
+      return request.headers.get(key);
+    }
+    if (typeof (request as Headers).get === "function") {
+      return (request as Headers).get(key);
+    }
+    const val = (request as Record<string, string | string[] | undefined>)[key];
+    if (Array.isArray(val)) return val[0] || null;
+    return (val as string) || null;
+  };
 
-  const realIp = headers.get("x-real-ip");
-  if (realIp) {
-    return realIp.trim();
+  // 1. Prioritaskan header terpercaya dari cloud / edge proxy yang tidak bisa dipalsukan oleh client
+  const vercelIp = getHeader("x-vercel-ip") || getHeader("x-vercel-forwarded-for");
+  if (vercelIp) return vercelIp.split(",")[0].trim();
+
+  const cfIp = getHeader("cf-connecting-ip");
+  if (cfIp) return cfIp.trim();
+
+  const realIp = getHeader("x-real-ip");
+  if (realIp) return realIp.trim();
+
+  // 2. Jika membaca x-forwarded-for, ambil IP paling kanan untuk mencegah header spoofing dari client
+  const forwardedFor = getHeader("x-forwarded-for");
+  if (forwardedFor) {
+    const parts = forwardedFor.split(",").map((s) => s.trim()).filter(Boolean);
+    return parts[parts.length - 1] || parts[0] || "127.0.0.1";
   }
 
   return "127.0.0.1";

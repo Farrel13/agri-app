@@ -2,7 +2,7 @@ import NextAuth, { DefaultSession, DefaultUser, NextAuthOptions } from "next-aut
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-logger";
 
 // 1. Deklarasikan tipe tambahan untuk NextAuth agar TypeScript mengenali role & username
@@ -44,9 +44,9 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Ambil identifier IP / Username untuk Rate Limiting (Mencegah brute-force password)
-        const ip = req?.headers?.["x-forwarded-for"] || "127.0.0.1";
-        const rateKey = `auth_${credentials.username}_${Array.isArray(ip) ? ip[0] : ip}`;
+        // Ambil identifier IP secara aman untuk Rate Limiting (Mencegah brute-force password)
+        const ip = getClientIp(req?.headers as Record<string, string | string[] | undefined>);
+        const rateKey = `auth_${credentials.username}_${ip}`;
         
         // Batasi maksimal 5 percobaan login gagal per 60 detik (OWASP A07)
         const rateCheck = await checkRateLimit(rateKey, 5, 60 * 1000);
