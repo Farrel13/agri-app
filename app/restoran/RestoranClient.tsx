@@ -212,40 +212,22 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
   };
 
   return (
-    <div className="p-4 max-w-7xl mx-auto space-y-4 font-sans">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">
-            Katalog Bahan Baku Restoran
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Pesan komoditas pangan segar yang telah lolos verifikasi mutu Toko Hub.
-          </p>
-        </div>
-
-        <Link
-          href="/restoran/pesanan"
-          className="inline-flex items-center gap-2 bg-white text-gray-700 hover:bg-gray-50 font-medium px-4 py-2 rounded-md border border-gray-200 transition text-sm"
-        >
-          Riwayat dan Pembayaran Pesanan
-        </Link>
-      </div>
-
+    <div className="min-h-screen bg-slate-50">
+      {/* Toast / Feedback Notifikasi */}
       {message && (
         <div
-          className={`p-3.5 rounded-md text-xs font-medium border flex items-center justify-between gap-3 animate-in fade-in duration-150 ${
+          className={`fixed top-4 right-4 z-50 rounded-xl shadow-lg px-4 py-3 text-sm font-medium flex items-center gap-3 min-w-64 ${
             message.type === "success"
-              ? "bg-emerald-50/70 text-emerald-800 border-emerald-200"
-              : "bg-rose-50/70 text-rose-800 border-rose-200"
+              ? "bg-emerald-600 text-white"
+              : "bg-rose-600 text-white"
           }`}
         >
-          <span>{message.text}</span>
+          <span className="flex-1">{message.text}</span>
           <div className="flex items-center gap-2 shrink-0">
             {message.type === "success" && (
               <Link
                 href="/restoran/pesanan"
-                className="px-2.5 py-1 bg-emerald-600 text-white rounded text-xs font-medium hover:bg-emerald-700 transition"
+                className="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-semibold transition"
               >
                 Bayar Sekarang
               </Link>
@@ -253,7 +235,7 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
             <button
               type="button"
               onClick={() => setMessage(null)}
-              className="text-gray-400 hover:text-gray-600 p-1 text-xs"
+              className="opacity-80 hover:opacity-100 text-sm font-bold"
               title="Tutup pesan"
             >
               ✕
@@ -262,162 +244,231 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
         </div>
       )}
 
-      {/* Main Grid: Products + Sticky Cart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Katalog Produk (2 Kolom) */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Search bar */}
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Cari nama bahan pangan, toko hub, atau petani..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-gray-300 rounded-md py-2.5 pl-3 pr-8 text-sm outline-none focus:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-500/20"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 text-xs"
-              >
-                ✕
-              </button>
-            )}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Header Halaman */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Katalog Bahan Baku</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Produk pangan segar terverifikasi dari Toko Hub mitra.
+            </p>
           </div>
+          <Link
+            href="/restoran/pesanan"
+            className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
+          >
+            {/* Ikon resi pesanan */}
+            <svg
+              className="w-4 h-4 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
+            </svg>
+            Riwayat Pesanan
+          </Link>
+        </div>
 
-          {filteredProducts.length === 0 ? (
-            <div className="bg-white p-6 text-center rounded-md border border-gray-200">
-              <p className="font-medium text-gray-700 text-sm">Bahan tidak ditemukan</p>
-              <p className="text-xs text-gray-400 mt-1">Coba kata kunci pencarian lainnya.</p>
+        {/* Konten Utama: Katalog + Sidebar Keranjang */}
+        <div className="flex gap-6 items-start">
+          {/* Kolom Kiri: Pencarian + Grid Produk */}
+          <div className="flex-1 min-w-0">
+            {/* Search Bar */}
+            <div className="relative">
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <input
+                type="text"
+                placeholder="Cari nama bahan, toko hub, atau petani..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm w-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 transition"
+              />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="mt-2 text-xs font-medium text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600 text-sm"
                 >
-                  Bersihkan pencarian
+                  ✕
                 </button>
               )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {filteredProducts.map((p) => {
-                const imgValid = isImageValid(p.imageUrl, p.imageExpiresAt);
-                return (
-                  <div
-                    key={p.id}
-                    className="bg-white rounded-md border border-gray-200 overflow-hidden flex flex-col justify-between"
+
+            {/* Grid Produk */}
+            {filteredProducts.length === 0 ? (
+              <div className="mt-4 py-16 text-center">
+                <div className="text-4xl mb-3">🔍</div>
+                <p className="font-semibold text-gray-700">Bahan tidak ditemukan</p>
+                <p className="text-gray-400 text-sm mt-1">Coba ubah kata kunci pencarian</p>
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="mt-4 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
                   >
-                    <div>
-                      <div className="relative h-44 bg-gray-100 overflow-hidden">
+                    Reset Pencarian
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filteredProducts.map((p) => {
+                  const imgValid = isImageValid(p.imageUrl, p.imageExpiresAt);
+                  return (
+                    <div
+                      key={p.id}
+                      className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col"
+                    >
+                      {/* Zona Gambar */}
+                      <div className="h-48 relative bg-gray-100">
                         {imgValid && p.imageUrl ? (
-                          <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                          <img
+                            src={p.imageUrl}
+                            alt={p.name}
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 text-xs">
-                            <span>{p.imageUrl ? "Foto Expired (>24 Jam)" : "Foto Segar Hub"}</span>
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-1">
+                            <span className="text-3xl">🌿</span>
+                            <span className="text-gray-400 text-xs">Foto segera hadir</span>
                           </div>
                         )}
 
-                        {/* Nama Toko Hub */}
+                        {/* Badge foto segar (overlay kiri atas) */}
+                        {imgValid && (
+                          <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full">
+                            📸 Foto Segar
+                          </span>
+                        )}
+
+                        {/* Badge nama Hub (overlay kanan atas) */}
                         {p.verifiedBy?.name && (
-                          <div className="absolute top-2 left-2 bg-gray-900/70 text-white text-xs font-medium px-2 py-0.5 rounded">
+                          <span className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full">
                             {p.verifiedBy.name}
-                          </div>
+                          </span>
                         )}
                       </div>
 
-                      <div className="p-4 space-y-2">
-                        <div className="flex justify-between items-start">
-                          <h3 className="font-bold text-gray-900 text-sm">{p.name}</h3>
-                          <span className="font-medium text-emerald-700 text-xs bg-white border border-gray-200 px-2 py-0.5 rounded">
-                            Rp {(p.priceHub || 0).toLocaleString("id-ID")}/{p.unit}
-                          </span>
-                        </div>
+                      {/* Body Kartu */}
+                      <div className="p-4 flex flex-col flex-1">
+                        <h3 className="font-semibold text-gray-900 text-sm leading-snug">
+                          {p.name}
+                        </h3>
 
-                        {/* Rating Bintang */}
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                          <span className="text-amber-500">★</span>
-                          <span className="text-gray-800">
+                        {/* Baris Rating */}
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className="text-amber-400 text-xs">★</span>
+                          <span className="text-xs text-gray-700">
                             {p.averageRating ? p.averageRating.toFixed(1) : "Baru"}
                           </span>
-                          <span className="text-gray-400 text-xs">
+                          <span className="text-xs text-gray-400">
                             ({p.reviewCount || 0} ulasan)
                           </span>
                         </div>
 
+                        {/* Baris Harga */}
+                        <div className="mt-2 flex items-baseline gap-1">
+                          <span className="text-lg font-bold text-emerald-600">
+                            Rp {(p.priceHub || 0).toLocaleString("id-ID")}
+                          </span>
+                          <span className="text-xs text-gray-400">/ {p.unit}</span>
+                        </div>
+
+                        {/* Meta: Petani & Stok */}
+                        <div className="mt-2 flex justify-between text-xs text-gray-400">
+                          <span>Petani: {p.user?.name || "Mitra Tani"}</span>
+                          <span>Stok: {p.stock} {p.unit}</span>
+                        </div>
+
+                        {/* Deskripsi singkat */}
                         {p.description && (
-                          <p className="text-xs text-gray-500 line-clamp-2">{p.description}</p>
+                          <p className="mt-2 text-xs text-gray-500 line-clamp-2">
+                            {p.description}
+                          </p>
                         )}
 
-                        <div className="text-xs text-gray-500 flex justify-between pt-1">
-                          <span>
-                            Petani: <strong>{p.user?.name || "Mitra Tani"}</strong>
-                          </span>
-                          <span>
-                            Stok: <strong>{p.stock} {p.unit}</strong>
-                          </span>
-                        </div>
+                        {/* Spacer */}
+                        <div className="flex-1" />
+
+                        {/* Tombol Tambah ke Keranjang */}
+                        <button
+                          onClick={() => addToCart(p)}
+                          className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold transition bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                        >
+                          + Tambah ke Keranjang
+                        </button>
                       </div>
                     </div>
-
-                    <div className="p-4 pt-0">
-                      <button
-                        onClick={() => addToCart(p)}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-medium text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        + Tambah ke Keranjang
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Sidebar Keranjang Belanja (Sticky) */}
-        <div className="h-fit space-y-4 lg:sticky lg:top-20">
-          <div className="bg-white p-4 rounded-md border border-gray-200 space-y-4">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h2 className="font-bold text-gray-900 text-sm">
-                Keranjang Restoran
-              </h2>
-              <span className="text-xs font-medium bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
-                {cart.length} Item
-              </span>
-            </div>
-
-            {cart.length === 0 ? (
-              <div className="py-4 text-center text-gray-400 text-xs">
-                Keranjang masih kosong. Pilih bahan segar dari katalog.
+                  );
+                })}
               </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Rincian Pesanan per Toko Hub (Multi-Vendor Split Info) */}
-                {hubCount > 1 && (
-                  <div className="bg-white border border-gray-300 p-2.5 rounded-md text-xs text-gray-700">
-                    <strong>Split Order Otomatis:</strong> Bahan Anda berasal dari <strong>{hubCount} Toko Hub</strong> berbeda. Sistem akan memecah pesanan secara mandiri.
-                  </div>
-                )}
+            )}
+          </div>
 
-                {Object.entries(cartByHub).map(([hubName, items]) => (
-                  <div key={hubName} className="border border-gray-200 rounded-md p-3 bg-white space-y-2">
-                    <div className="flex items-center justify-between text-xs font-medium text-gray-700">
-                      <span>Toko: {hubName}</span>
-                      <span className="text-xs text-gray-400">Ongkir: Rp 15.000</span>
+          {/* Kolom Kanan: Keranjang (sticky, hanya tampil di lg ke atas) */}
+          <div className="w-80 shrink-0 sticky top-20 hidden lg:block">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+              {/* Header Keranjang */}
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-gray-900">🛒 Keranjang</span>
+                <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                  {cart.length} item
+                </span>
+              </div>
+
+              {/* Keranjang Kosong */}
+              {cart.length === 0 ? (
+                <div className="py-8 text-center text-gray-400 text-sm">
+                  Belum ada item di keranjang.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Info Split Multi-Hub */}
+                  {hubCount > 1 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-xs text-amber-700">
+                      <strong>Split Order Otomatis:</strong> Bahan berasal dari{" "}
+                      <strong>{hubCount} Toko Hub</strong> berbeda. Pesanan akan dipisah otomatis.
                     </div>
+                  )}
 
-                    <div className="space-y-2">
+                  {/* Item Keranjang per Hub */}
+                  {Object.entries(cartByHub).map(([hubName, items]) => (
+                    <div key={hubName}>
+                      <p className="text-xs text-gray-500 font-medium mb-2">
+                        Toko: {hubName}
+                      </p>
                       {items.map((item) => (
-                        <div key={item.product.id} className="flex justify-between items-center text-xs bg-white p-2 rounded border border-gray-200">
-                          <div className="min-w-0 pr-2">
-                            <p className="font-medium text-gray-800 truncate">{item.product.name}</p>
-                            <p className="text-xs text-emerald-700 font-medium">
+                        <div
+                          key={item.product.id}
+                          className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0"
+                        >
+                          <div className="flex-1 min-w-0 pr-2">
+                            <p className="text-sm font-medium text-gray-800 truncate">
+                              {item.product.name}
+                            </p>
+                            <p className="text-xs text-emerald-600 font-semibold">
                               Rp {((item.product.priceHub || 0) * item.quantity).toLocaleString("id-ID")}
                             </p>
                           </div>
-
                           <div className="flex items-center gap-1.5 shrink-0">
                             <input
                               type="number"
@@ -431,11 +482,11 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
                                   item.product.stock
                                 )
                               }
-                              className="w-14 border border-gray-300 rounded-md px-1.5 py-1 text-center text-xs font-medium outline-none focus:border-emerald-500"
+                              className="w-12 text-center text-xs border border-gray-200 rounded-lg p-1 focus:outline-none focus:border-emerald-400"
                             />
                             <button
                               onClick={() => removeFromCart(item.product.id)}
-                              className="text-rose-500 hover:text-rose-700 text-xs px-1 font-medium"
+                              className="text-rose-500 hover:text-rose-700 text-xs font-bold px-1"
                             >
                               ✕
                             </button>
@@ -443,100 +494,111 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
                         </div>
                       ))}
                     </div>
-                  </div>
-                ))}
+                  ))}
 
-                {/* Pilih Alamat Pengiriman */}
-                <div className="pt-2 border-t space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-medium text-gray-700">Alamat Pengiriman</label>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddressModal(true)}
-                      className="text-xs text-emerald-700 hover:underline font-medium"
-                    >
-                      + Tambah Alamat
-                    </button>
-                  </div>
+                  {/* Info Ongkir */}
+                  <p className="text-xs text-gray-400">Ongkir: Rp 15.000 / Hub</p>
 
-                  {addresses.length === 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowAddressModal(true)}
-                      className="w-full text-xs text-center p-2.5 border border-dashed border-gray-300 rounded-md text-emerald-700 bg-white font-medium"
-                    >
-                      + Tambah Alamat Pengantaran
-                    </button>
-                  ) : (
-                    <select
-                      value={selectedAddressId}
-                      onChange={(e) => setSelectedAddressId(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md p-2 text-xs bg-white text-gray-800 font-medium outline-none focus:border-emerald-500"
-                    >
-                      {addresses.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.label} - {a.street}, {a.city}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-
-                {/* Pilih Metode Pembayaran */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-700">Metode Pembayaran</label>
-                  <div className="grid grid-cols-3 gap-2 text-xs">
-                    {(["QRIS", "TRANSFER_BANK", "E_WALLET"] as const).map((m) => (
+                  {/* Pilih Alamat Pengiriman */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-xs font-semibold text-gray-700">
+                        Alamat Pengiriman
+                      </label>
                       <button
-                        key={m}
                         type="button"
-                        onClick={() => setPaymentMethod(m)}
-                        className={`py-2 rounded-md font-medium border transition text-center ${
-                          paymentMethod === m
-                            ? "bg-white border-emerald-600 text-emerald-800"
-                            : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                        }`}
+                        onClick={() => setShowAddressModal(true)}
+                        className="text-xs text-emerald-600 hover:underline"
                       >
-                        {m === "QRIS" ? "QRIS" : m === "TRANSFER_BANK" ? "Transfer" : "E-Wallet"}
+                        + Tambah Alamat
                       </button>
-                    ))}
+                    </div>
+                    {addresses.length === 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddressModal(true)}
+                        className="w-full text-xs text-center p-2.5 border border-dashed border-gray-300 rounded-xl text-emerald-600 bg-white font-medium hover:bg-emerald-50 transition"
+                      >
+                        + Tambah Alamat
+                      </button>
+                    ) : (
+                      <select
+                        value={selectedAddressId}
+                        onChange={(e) => setSelectedAddressId(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl p-2 text-xs bg-white focus:outline-none focus:border-emerald-400"
+                      >
+                        {addresses.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.label} - {a.street}, {a.city}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
-                </div>
 
-                {/* Ringkasan Biaya */}
-                <div className="pt-2 border-t space-y-1.5 text-xs text-gray-600">
-                  <div className="flex justify-between">
-                    <span>Subtotal Bahan:</span>
-                    <span className="font-medium">Rp {subtotalAmount.toLocaleString("id-ID")}</span>
+                  {/* Metode Pembayaran */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                      Metode Pembayaran
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["QRIS", "TRANSFER_BANK", "E_WALLET"] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setPaymentMethod(m)}
+                          className={`py-2 rounded-xl text-xs font-semibold transition text-center ${
+                            paymentMethod === m
+                              ? "bg-emerald-600 text-white"
+                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          }`}
+                        >
+                          {m === "QRIS" ? "QRIS" : m === "TRANSFER_BANK" ? "Transfer" : "E-Wallet"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Ongkos Kirim ({hubCount} Hub):</span>
-                    <span className="font-medium">Rp {deliveryFeeTotal.toLocaleString("id-ID")}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-gray-900 text-sm pt-2 border-t">
-                    <span>Total Pembayaran:</span>
-                    <span className="text-emerald-700">Rp {grandTotal.toLocaleString("id-ID")}</span>
-                  </div>
-                </div>
 
-                <button
-                  onClick={handleCheckout}
-                  disabled={loading}
-                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-medium text-sm transition disabled:opacity-50 cursor-pointer"
-                >
-                  {loading ? "Membuat Pesanan..." : "Pesan dan Lanjut Pembayaran"}
-                </button>
-              </div>
-            )}
+                  {/* Ringkasan Biaya */}
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between text-gray-600">
+                      <span>Subtotal</span>
+                      <span>Rp {subtotalAmount.toLocaleString("id-ID")}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400 text-xs">
+                      <span>Ongkir ({hubCount} Hub)</span>
+                      <span>Rp {deliveryFeeTotal.toLocaleString("id-ID")}</span>
+                    </div>
+                    <hr className="border-gray-100 my-1" />
+                    <div className="flex justify-between font-bold text-base">
+                      <span className="text-gray-900">Total</span>
+                      <span className="text-emerald-600">
+                        Rp {grandTotal.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tombol Checkout */}
+                  <button
+                    onClick={handleCheckout}
+                    disabled={loading}
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 cursor-pointer"
+                  >
+                    {loading ? "Membuat Pesanan..." : "Pesan dan Lanjut Pembayaran"}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Modal Tambah Alamat Baru */}
       {showAddressModal && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-md border border-gray-200 w-full max-w-md p-4 space-y-4">
-            <div className="flex justify-between items-center border-b pb-3">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl space-y-4">
+            {/* Header Modal */}
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
               <h3 className="font-bold text-gray-900 text-sm">Tambah Alamat Dapur / Cabang</h3>
               <button
                 onClick={() => setShowAddressModal(false)}
@@ -547,6 +609,7 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
             </div>
 
             <form onSubmit={handleCreateAddress} className="space-y-3">
+              {/* Label Alamat */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Label Alamat</label>
                 <input
@@ -554,10 +617,11 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
                   name="label"
                   required
                   placeholder="cth: Dapur Cabang Kemang"
-                  className="w-full border border-gray-300 rounded-md p-2.5 text-xs outline-none focus:border-emerald-500"
+                  className="w-full border border-gray-200 rounded-xl p-2.5 text-xs outline-none focus:border-emerald-400"
                 />
               </div>
 
+              {/* Nama Penerima & No. WhatsApp */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Nama Penerima</label>
@@ -566,7 +630,7 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
                     name="recipientName"
                     required
                     placeholder="Chef / Manager"
-                    className="w-full border border-gray-300 rounded-md p-2.5 text-xs outline-none focus:border-emerald-500"
+                    className="w-full border border-gray-200 rounded-xl p-2.5 text-xs outline-none focus:border-emerald-400"
                   />
                 </div>
                 <div>
@@ -576,11 +640,12 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
                     name="phoneNumber"
                     required
                     placeholder="08123456789"
-                    className="w-full border border-gray-300 rounded-md p-2.5 text-xs outline-none focus:border-emerald-500"
+                    className="w-full border border-gray-200 rounded-xl p-2.5 text-xs outline-none focus:border-emerald-400"
                   />
                 </div>
               </div>
 
+              {/* Alamat Jalan */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Alamat Jalan dan No</label>
                 <input
@@ -588,10 +653,11 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
                   name="street"
                   required
                   placeholder="Jl. Raya Kemang No. 18"
-                  className="w-full border border-gray-300 rounded-md p-2.5 text-xs outline-none focus:border-emerald-500"
+                  className="w-full border border-gray-200 rounded-xl p-2.5 text-xs outline-none focus:border-emerald-400"
                 />
               </div>
 
+              {/* Kota & Provinsi */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Kota / Kab</label>
@@ -600,7 +666,7 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
                     name="city"
                     required
                     placeholder="Jakarta Selatan"
-                    className="w-full border border-gray-300 rounded-md p-2.5 text-xs outline-none focus:border-emerald-500"
+                    className="w-full border border-gray-200 rounded-xl p-2.5 text-xs outline-none focus:border-emerald-400"
                   />
                 </div>
                 <div>
@@ -610,23 +676,24 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
                     name="province"
                     required
                     defaultValue="DKI Jakarta"
-                    className="w-full border border-gray-300 rounded-md p-2.5 text-xs outline-none focus:border-emerald-500"
+                    className="w-full border border-gray-200 rounded-xl p-2.5 text-xs outline-none focus:border-emerald-400"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-2 border-t">
+              {/* Tombol Aksi */}
+              <div className="flex gap-2 pt-2 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setShowAddressModal(false)}
-                  className="flex-1 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition"
+                  className="flex-1 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={savingAddress}
-                  className="flex-1 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md disabled:opacity-50 transition"
+                  className="flex-1 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl disabled:opacity-50 transition"
                 >
                   {savingAddress ? "Menyimpan..." : "Simpan Alamat"}
                 </button>
