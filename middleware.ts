@@ -1,88 +1,85 @@
-import { withAuth } from "next-auth/middleware";
+import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default withAuth(
-  async function middleware(req) {
-    const url = req.nextUrl.pathname;
-    const token = req.nextauth.token;
-    const role = token?.role;
+export async function middleware(req: NextRequest) {
+  const url = req.nextUrl.pathname;
 
-    // Helper to create response with no-cache headers
-    const createRedirect = (target: string) => {
-      const res = NextResponse.redirect(new URL(target, req.url));
-      res.headers.set(
-        "Cache-Control",
-        "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
-      );
-      res.headers.set("Pragma", "no-cache");
-      res.headers.set("Expires", "0");
-      return res;
-    };
+  // Cek apakah request memakai HTTPS (baik langsung atau via header reverse proxy di Vercel)
+  const isHttps =
+    req.nextUrl.protocol === "https:" ||
+    req.headers.get("x-forwarded-proto") === "https" ||
+    process.env.NODE_ENV === "production";
 
-    // 1. Jika user SUDAH login tapi mencoba akses halaman login/register, lempar ke beranda
-    if (token && (url === "/login" || url === "/register")) {
-      return createRedirect("/");
-    }
+  // Coba ambil token JWT NextAuth dengan deteksi cookie yang sesuai
+  let token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET,
+    secureCookie: isHttps,
+  });
 
-    // 2. Kunci akses halaman Petani
-    if (url.startsWith("/petani") && role !== "PETANI") {
-      return createRedirect("/");
-    }
+  // Fallback: jika null, coba tanpa secureCookie
+  if (!token && isHttps) {
+    token = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: false,
+    });
+  }
 
-    // 3. Kunci akses halaman Hub
-    if (url.startsWith("/hub") && role !== "HUB") {
-      return createRedirect("/");
-    }
+  const role = token?.role;
 
-    // 4. Kunci akses halaman Restoran
-    if (url.startsWith("/restoran") && role !== "RESTAURANT") {
-      return createRedirect("/");
-    }
-
-    // 5. Kunci akses halaman Admin
-    if (url.startsWith("/admin") && role !== "ADMIN") {
-      return createRedirect("/");
-    }
-
-    // Pass through dengan anti-cache header untuk protected pages
-    const response = NextResponse.next();
-    response.headers.set(
+  // Helper untuk redirect dengan header anti-cache
+  const createRedirect = (target: string) => {
+    const res = NextResponse.redirect(new URL(target, req.url));
+    res.headers.set(
       "Cache-Control",
       "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
     );
-    response.headers.set("Pragma", "no-cache");
-    response.headers.set("Expires", "0");
-    return response;
-  },
-  {
-    secret: process.env.NEXTAUTH_SECRET,
-    pages: {
-      signIn: "/login",
-    },
-    callbacks: {
-      authorized: ({ req, token }) => {
-        const path = req.nextUrl.pathname;
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
+    return res;
+  };
 
-        // Halaman landing page, login, register, dan cron API boleh diakses tanpa token
-        if (
-          path === "/" ||
-          path === "/login" ||
-          path === "/register" ||
-          path.startsWith("/api/cron")
-        ) {
-          return true;
-        }
+  // 1. Jika belum login dan mencoba mengakses protected routes
+  const isProtected =
+    url.startsWith("/petani") ||
+    url.startsWith("/hub") ||
+    url.startsWith("/restoran") ||
+    url.startsWith("/admin");
 
-        // Halaman dashboard lainnya WAJIB memiliki token (harus login)
-        return !!token;
-      },
-    },
+  if (isProtected && !token) {
+    return createRedirect(`/login?callbackUrl=${encodeURIComponent(url)}`);
   }
-);
+
+  // 2. Jika SUDAH login tapi membuka halaman login atau register, redirect ke dashboard role masing-masing
+  if (token && (url === "/login" || url === "/register")) {
+    if (role === "PETANI") return createRedirect("/petani");
+    if (role === "HUB") return createRedirect("/hub");
+    if (role === "RESTAURANT") return createRedirect("/restoran");
+    if (role === "ADMIN") return createRedirect("/admin");
+    return createRedirect("/");
+  }
+
+  // 3. Batasi akses role (RBAC)
+  if (url.startsWith("/petani") && role !== "PETANI") return createRedirect("/");
+  if (url.startsWith("/hub") && role !== "HUB") return createRedirect("/");
+  if (url.startsWith("/restoran") && role !== "RESTAURANT") return createRedirect("/");
+  if (url.startsWith("/admin") && role !== "ADMIN") return createRedirect("/");
+
+  // Teruskan request dengan no-cache header
+  const response = NextResponse.next();
+  response.headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+  );
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
+  return response;
+}
 
 export const config = {
   matcher: [
-    "/",
     "/login",
     "/register",
     "/petani/:path*",

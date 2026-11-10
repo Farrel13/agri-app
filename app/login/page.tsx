@@ -1,31 +1,55 @@
 "use client";
 
-import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { signIn, useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Jika sudah terotentikasi, otomatis alihkan ke halaman callbackUrl atau dashboard role
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      const params = new URLSearchParams(window.location.search);
+      const callbackUrl = params.get("callbackUrl");
+      if (callbackUrl && !callbackUrl.startsWith("/login")) {
+        window.location.href = callbackUrl;
+      } else {
+        const role = session.user?.role;
+        if (role === "PETANI") window.location.href = "/petani";
+        else if (role === "HUB") window.location.href = "/hub";
+        else if (role === "RESTAURANT") window.location.href = "/restoran";
+        else if (role === "ADMIN") window.location.href = "/admin";
+        else window.location.href = "/";
+      }
+    }
+  }, [status, session]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     const res = await signIn("credentials", {
-      username, // Sesuaikan dengan field di authOptions Anda
+      username,
       password,
       redirect: false,
     });
 
+    setLoading(false);
+
     if (res?.error) {
       setError("Login gagal. Periksa kembali data Anda.");
     } else {
-      router.push("/"); // Arahkan ke halaman utama setelah berhasil
-      router.refresh();
+      const params = new URLSearchParams(window.location.search);
+      const callbackUrl = params.get("callbackUrl");
+      window.location.href = callbackUrl && !callbackUrl.startsWith("/login") ? callbackUrl : "/";
     }
   };
 
@@ -48,6 +72,7 @@ export default function LoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full border border-gray-300 rounded-md p-2.5 outline-none focus:border-emerald-500 text-sm"
+              disabled={loading}
             />
           </div>
           <div>
@@ -58,13 +83,15 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full border border-gray-300 rounded-md p-2.5 outline-none focus:border-emerald-500 text-sm"
+              disabled={loading}
             />
           </div>
           <button
             type="submit"
-            className="w-full bg-emerald-600 text-white font-medium py-2.5 rounded-md hover:bg-emerald-700 transition"
+            disabled={loading}
+            className="w-full bg-emerald-600 text-white font-medium py-2.5 rounded-md hover:bg-emerald-700 transition disabled:opacity-50"
           >
-            Masuk
+            {loading ? "Memproses..." : "Masuk"}
           </button>
         </form>
 
