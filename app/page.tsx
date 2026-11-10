@@ -79,10 +79,12 @@ export default async function HomePage() {
             <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
               {/* Kartu 1 */}
               <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                <div className="text-2xl mb-3">🌾</div>
-                <h3 className="font-semibold text-gray-900 text-sm">
-                  Langsung dari Petani
-                </h3>
+                <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center mb-3">
+                  <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-900 text-sm">Langsung dari Petani</h3>
                 <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
                   Produk pangan segar dengan foto panen real-time, terbarui tiap 24 jam.
                 </p>
@@ -90,10 +92,12 @@ export default async function HomePage() {
 
               {/* Kartu 2 */}
               <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                <div className="text-2xl mb-3">✅</div>
-                <h3 className="font-semibold text-gray-900 text-sm">
-                  Dikurasi oleh Hub
-                </h3>
+                <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center mb-3">
+                  <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-900 text-sm">Dikurasi oleh Hub</h3>
                 <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
                   Setiap bahan melewati verifikasi mutu oleh Toko Hub terpercaya sebelum dijual.
                 </p>
@@ -101,10 +105,12 @@ export default async function HomePage() {
 
               {/* Kartu 3 */}
               <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                <div className="text-2xl mb-3">🚚</div>
-                <h3 className="font-semibold text-gray-900 text-sm">
-                  Pengiriman ke Dapur
-                </h3>
+                <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center mb-3">
+                  <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-900 text-sm">Pengiriman ke Dapur</h3>
                 <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
                   Pesan pagi, estimasi tiba di dapur restoran Anda hari itu juga.
                 </p>
