@@ -3,22 +3,24 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-logger";
+import {
+  generateRegistrationTicket,
+  verifyRegistrationTicket,
+} from "@/lib/registration-ticket";
+
+/**
+ * GET: Mengambil ephemeral registration ticket bertanda tangan HMAC
+ * Dipanggil saat form register dimuat di browser pengguna
+ */
+export async function GET() {
+  const ticket = generateRegistrationTicket();
+  return NextResponse.json({ ticket });
+}
 
 export async function POST(request: Request) {
   try {
-    // Rate Limiting: Maksimal 5 registrasi per 60 detik per IP
     const clientIp = getClientIp(request);
-    const rateCheck = await checkRateLimit(`register_${clientIp}`, 5, 60 * 1000);
-
-    if (!rateCheck.success) {
-      logSecurityEvent({
-        level: "WARN",
-        action: "REGISTER_RATE_LIMIT_EXCEEDED",
-        ip: clientIp,
-        details: { endpoint: "/api/register" },
-      });
-      return rateLimitResponse("Terlalu banyak permintaan pendaftaran. Silakan coba lagi setelah 1 menit.");
-    }
+    const body = await request.json();
 
     const {
       name,
@@ -31,7 +33,66 @@ export async function POST(request: Request) {
       city,
       province,
       postalCode,
-    } = await request.json();
+      faxNumber, // 1. Honeypot Field (harus selalu kosong untuk manusia)
+      regTicket, // 2. Ephemeral Session Ticket + Time-check
+    } = body;
+
+    // 1. UJI HONEYPOT: Jika field faxNumber terisi, request dipastikan berasal dari automated bot
+    if (faxNumber && typeof faxNumber === "string" && faxNumber.trim().length > 0) {
+      logSecurityEvent({
+        level: "SECURITY_ALERT",
+        action: "HONEYPOT_TRIGGERED",
+        ip: clientIp,
+        details: { field: "faxNumber", honeypotValue: faxNumber.slice(0, 50) },
+      });
+      return NextResponse.json(
+        { message: "Terjadi kesalahan saat memproses data pendaftaran." },
+        { status: 400 }
+      );
+    }
+
+    // 2. UJI EPHEMERAL TICKET & WAKTU PENGISIAN WAJAR (Minimum 3 detik, Maksimal 2 jam)
+    const ticketCheck = verifyRegistrationTicket(regTicket, 3000, 2 * 60 * 60 * 1000);
+    if (!ticketCheck.valid) {
+      logSecurityEvent({
+        level: "WARN",
+        action: `REGISTRATION_TICKET_${ticketCheck.reason}`,
+        ip: clientIp,
+        details: { reason: ticketCheck.reason, elapsedMs: ticketCheck.elapsedMs },
+      });
+      return NextResponse.json(
+        { message: ticketCheck.message || "Validasi formulir pendaftaran gagal." },
+        { status: 400 }
+      );
+    }
+
+    // 3. RATE LIMITING BERLAPIS (NAT-FRIENDLY)
+    // a. Limit per Registration Ticket: Maksimal 3 kali submit per tiket sesi form
+    const ticketRate = await checkRateLimit(`reg_ticket_${ticketCheck.ticketId}`, 3, 60 * 1000);
+    if (!ticketRate.success) {
+      return rateLimitResponse("Terlalu banyak percobaan pada formulir ini. Silakan muat ulang halaman.");
+    }
+
+    // b. Limit per Target Email (jika diisi)
+    if (email && typeof email === "string") {
+      const emailRate = await checkRateLimit(`reg_email_${email.toLowerCase().trim()}`, 2, 60 * 1000);
+      if (!emailRate.success) {
+        return rateLimitResponse("Terlalu banyak permintaan untuk alamat email ini. Tunggu 1 menit.");
+      }
+    }
+
+    // c. Limit per IP yang lebih ramah NAT (30 pendaftaran per 5 menit)
+    // Karena bot sudah difilter oleh Honeypot & Time-check, kuota IP diperluas agar aman untuk banyak orang di balik NAT/WiFi kantor
+    const ipRate = await checkRateLimit(`register_ip_${clientIp}`, 30, 5 * 60 * 1000);
+    if (!ipRate.success) {
+      logSecurityEvent({
+        level: "WARN",
+        action: "REGISTER_IP_RATE_LIMIT_EXCEEDED",
+        ip: clientIp,
+        details: { endpoint: "/api/register" },
+      });
+      return rateLimitResponse("Batas pendaftaran dari jaringan ini tercapai. Silakan coba lagi nanti.");
+    }
 
     if (!name || !email || !username || !password || !role) {
       return NextResponse.json({ message: "Semua data akun wajib diisi." }, { status: 400 });

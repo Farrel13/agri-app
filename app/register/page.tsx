@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -18,8 +18,24 @@ export default function RegisterPage() {
     province: "",
     postalCode: "",
   });
+  const [regTicket, setRegTicket] = useState<string>("");
+  const [faxNumber, setFaxNumber] = useState<string>(""); // Honeypot field
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Ambil ephemeral registration ticket bertanda tangan saat form pertama kali dimuat
+  const loadTicket = () => {
+    fetch("/api/register")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.ticket) setRegTicket(data.ticket);
+      })
+      .catch((err) => console.error("Gagal mengambil tiket pendaftaran:", err));
+  };
+
+  useEffect(() => {
+    loadTicket();
+  }, []);
 
   // Kriteria password
   const hasMinLen = formData.password.length >= 8;
@@ -49,7 +65,11 @@ export default function RegisterPage() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          faxNumber,
+          regTicket,
+        }),
       });
 
       if (res.ok) {
@@ -57,6 +77,10 @@ export default function RegisterPage() {
       } else {
         const data = await res.json();
         setError(data.message || "Gagal mendaftar");
+        // Jika tiket kadaluarsa atau bermasalah, perbarui tiket secara background
+        if (data.message && data.message.includes("tiket")) {
+          loadTicket();
+        }
       }
     } catch {
       setError("Terjadi kesalahan koneksi pada server.");
@@ -80,6 +104,23 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Honeypot Field (Anti-Bot: disembunyikan dari manusia, bot form scraper akan mengisinya otomatis) */}
+          <div
+            aria-hidden="true"
+            className="absolute -left-[9999px] -top-[9999px] opacity-0 pointer-events-none select-none"
+            tabIndex={-1}
+          >
+            <label htmlFor="hp_fax_number">Nomor Fax Kantor</label>
+            <input
+              id="hp_fax_number"
+              type="text"
+              name="faxNumber"
+              tabIndex={-1}
+              autoComplete="off"
+              value={faxNumber}
+              onChange={(e) => setFaxNumber(e.target.value)}
+            />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">

@@ -100,6 +100,11 @@ export async function dispatchOrderAction(formData: FormData) {
       return { success: false, message: "Akses tidak diizinkan." };
     }
 
+    const rateCheck = await checkServerActionRateLimit("dispatch_order", session.user.id, 20, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
+    }
+
     const orderId = formData.get("orderId") as string;
     const courierName = (formData.get("courierName") as string)?.trim() || "Kurir Toko Hub";
     const courierPhone = (formData.get("courierPhone") as string)?.trim() || "-";
@@ -159,6 +164,11 @@ export async function verifyOrderPaymentAction(orderId: string) {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "HUB") {
       return { success: false, message: "Akses tidak diizinkan." };
+    }
+
+    const rateCheck = await checkServerActionRateLimit("verify_payment", session.user.id, 20, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
     }
 
     const order = await prisma.order.findUnique({

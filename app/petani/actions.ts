@@ -24,6 +24,11 @@ export async function tambahPanen(data: TambahPanenInput) {
       return { success: false, message: "Akses tidak diizinkan." };
     }
 
+    const rateCheck = await checkServerActionRateLimit("tambah_panen", session.user.id, 5, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
+    }
+
     const { name, stock, unit, priceFarmer, imageUrl } = data;
 
     const cleanName = (name || "").trim().slice(0, 100);
