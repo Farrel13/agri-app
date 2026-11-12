@@ -10,6 +10,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.22.0",
     "@upstash/ratelimit": "^2.2.0",
     "@upstash/redis": "^1.41.0",
@@ -30,8 +31,10 @@
     "autoprefixer": "^10.6.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "pdf-lib": "^1.17.1",
     "postcss": "^8.5.32",
     "prisma": "^5.22.0",
+    "puppeteer-core": "^25.17.0",
     "tailwindcss": "^4.3.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

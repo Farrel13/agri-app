@@ -5,6 +5,7 @@ import "./globals.css";
 // Pastikan path import ini sesuai dengan lokasi file Anda
 import { Providers } from "./Providers"; 
 import Navbar from "@/components/Navbar";
+import ChatBot from "@/components/ChatBot";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,6 +25,7 @@ export default function RootLayout({
         <Providers>
           <Navbar />
           {children}
+          <ChatBot />
         </Providers>
       </body>
     </html>
