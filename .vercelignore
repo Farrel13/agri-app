@@ -1,0 +1,11 @@
+# Berkas & Skrip Dokumen Offline (Tidak perlu di-bundle ke fungsi Vercel Serverless)
+generate_ta_pdf.js
+Naskah_Tugas_Akhir_AgriApp.pdf
+
+# File temporary & local uploads
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Environment lokal & cache compiler
+.env.local
+*.tsbuildinfo

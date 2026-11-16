@@ -43,9 +43,10 @@ export async function completeOrderAction(formData: FormData) {
     if (file && file.size > 0 && typeof file.arrayBuffer === "function") {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      const validation = validateImageBuffer(buffer, 3 * 1024 * 1024);
+      // Batasi 2MB agar selaras dengan bodySizeLimit dan mencegah database bloat
+      const validation = validateImageBuffer(buffer, 2 * 1024 * 1024);
       if (!validation.isValid) {
-        return { success: false, message: validation.error || "Berkas gambar ditolak." };
+        return { success: false, message: validation.error || "Berkas gambar ditolak (maksimal 2MB)." };
       }
 
       const mimeType =

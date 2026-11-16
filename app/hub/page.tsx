@@ -4,8 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { ensureHubOwnership } from "@/lib/hubSync";
-import { cleanupExpiredImages } from "@/lib/cleanup";
 import HubClient from "./HubClient";
 
 export default async function DashboardHub() {
@@ -19,39 +17,33 @@ export default async function DashboardHub() {
     redirect("/");
   }
 
-  // 1. Bersihkan produk & foto kadaluarsa (> 24 jam)
-  await cleanupExpiredImages();
-
-  // 2. Sinkronkan kepemilikan data lama
-  await ensureHubOwnership();
-
-  // 3. Ambil antrean panen masuk per hari dari petani (belum diverifikasi)
-  const unverifiedProducts = await prisma.product.findMany({
-    where: { isVerified: false },
-    include: {
-      user: {
-        select: { id: true, name: true },
+  // Ambil antrean panen masuk dan etalase toko secara paralel (Promise.all) untuk memangkas latensi database
+  const [unverifiedProducts, myStoreProducts] = await Promise.all([
+    prisma.product.findMany({
+      where: { isVerified: false },
+      include: {
+        user: {
+          select: { id: true, name: true },
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  // 3. Ambil etalase toko milik Hub yang sedang login ini
-  const myStoreProducts = await prisma.product.findMany({
-    where: {
-      isVerified: true,
-      verifiedById: session.user.id,
-    },
-    include: {
-      user: {
-        select: { id: true, name: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.product.findMany({
+      where: {
+        isVerified: true,
+        verifiedById: session.user.id,
       },
-      verifiedBy: {
-        select: { id: true, name: true },
+      include: {
+        user: {
+          select: { id: true, name: true },
+        },
+        verifiedBy: {
+          select: { id: true, name: true },
+        },
       },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+      orderBy: { updatedAt: "desc" },
+    }),
+  ]);
 
   return (
     <HubClient

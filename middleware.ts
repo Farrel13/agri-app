@@ -67,15 +67,8 @@ export async function middleware(req: NextRequest) {
   if (url.startsWith("/restoran") && role !== "RESTAURANT") return createRedirect("/");
   if (url.startsWith("/admin") && role !== "ADMIN") return createRedirect("/");
 
-  // Teruskan request dengan no-cache header
-  const response = NextResponse.next();
-  response.headers.set(
-    "Cache-Control",
-    "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
-  );
-  response.headers.set("Pragma", "no-cache");
-  response.headers.set("Expires", "0");
-  return response;
+  // Teruskan request yang terotorisasi secara normal
+  return NextResponse.next();
 }
 
 export const config = {

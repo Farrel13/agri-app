@@ -5,8 +5,6 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import RestoranClient from "./RestoranClient";
-import { ensureHubOwnership } from "@/lib/hubSync";
-import { cleanupExpiredImages } from "@/lib/cleanup";
 
 export default async function DashboardRestoran() {
   const session = await getServerSession(authOptions);
@@ -18,12 +16,6 @@ export default async function DashboardRestoran() {
   if (session.user.role !== "RESTAURANT") {
     redirect("/");
   }
-
-  // Bersihkan produk kadaluarsa (> 24 jam)
-  await cleanupExpiredImages();
-
-  // Sinkronkan kepemilikan produk lama jika ada
-  await ensureHubOwnership();
 
   // Ambil produk yang sudah diverifikasi oleh Hub dan stoknya masih > 0
   const rawCatalog = await prisma.product.findMany({

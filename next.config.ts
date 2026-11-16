@@ -43,7 +43,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: "2mb", // Diturunkan dari 10mb untuk mencegah DoS payload besar
+      bodySizeLimit: "3.5mb", // Diselaraskan dengan batas validasi file (2MB) + overhead multipart di bawah batas 4.5MB Vercel
     },
   },
   turbopack: {

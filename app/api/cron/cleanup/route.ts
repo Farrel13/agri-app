@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { cleanupExpiredImages } from "@/lib/cleanup";
 
+// Maksimal durasi eksekusi untuk Vercel Serverless Function (maks 60s pada runtime yang mendukung)
+export const maxDuration = 60;
+
 /**
  * Route Endpoint untuk Background Cron Job Pembersihan Foto Panen & Terima Barang (>24 jam)
- * Dapat dipanggil secara berkala (misal: setiap tengah malam / per 6 jam)
- * Contoh: curl -X POST http://localhost:3000/api/cron/cleanup
+ * Dipanggil secara berkala via Vercel Cron atau external scheduler dengan header Bearer CRON_SECRET.
  */
 export async function GET(request: Request) {
   try {
@@ -23,12 +25,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "Akses cron ditolak (Unauthorized)." }, { status: 401 });
     }
 
-    await cleanupExpiredImages();
+    const result = await cleanupExpiredImages(50);
 
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
       message: "Pembersihan foto kadaluarsa (>24 jam) berhasil dijalankan secara background.",
+      details: result,
     });
   } catch (error) {
     console.error("Gagal menjalankan cron cleanup:", error);

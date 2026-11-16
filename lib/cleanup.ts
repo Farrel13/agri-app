@@ -1,55 +1,52 @@
 import { prisma } from "@/lib/prisma";
-import { unlink } from "fs/promises";
-import path from "path";
+
+export interface CleanupResult {
+  deletedProducts: number;
+  archivedProducts: number;
+  cleanedOrders: number;
+}
 
 /**
  * Membersihkan data yang sudah kadaluarsa melewati batas 24 jam:
- * 2. Membersihkan foto bukti penerimaan barang Order (> 24 jam).
+ * 1. Produk panen tanpa pesanan dihapus; produk panen dengan riwayat pesanan diarsipkan & foto dikosongkan.
+ * 2. Foto bukti penerimaan barang Order (> 24 jam) dikosongkan dari basis data.
+ *
+ * Catatan Arsitektur:
+ * - Tidak menggunakan fs/promises lokal karena Vercel Serverless memiliki ephemeral filesystem.
+ * - Menerapkan batching/pagination (parameter batchSize) untuk mencegah runtime timeout.
  */
-export async function cleanupExpiredImages() {
+export async function cleanupExpiredImages(batchSize = 50): Promise<CleanupResult> {
   try {
     const now = new Date();
 
-    // 1. Cari produk hasil panen yang sudah kadaluarsa (> 24 jam)
+    // 1. Ambil produk panen kadaluarsa secara terbatas (batching)
     const expiredProducts = await prisma.product.findMany({
       where: {
         imageExpiresAt: { lte: now },
       },
       include: {
-        orderItems: true,
+        orderItems: { select: { id: true }, take: 1 },
       },
+      take: batchSize,
     });
 
     const idsToDelete: string[] = [];
     const idsToArchive: string[] = [];
 
     for (const item of expiredProducts) {
-      // Hapus file fisik di public/uploads jika ada
-      if (item.imageUrl && item.imageUrl.startsWith("/uploads/")) {
-        const filename = item.imageUrl.replace("/uploads/", "");
-        const filePath = path.join(process.cwd(), "public", "uploads", filename);
-        try {
-          await unlink(filePath);
-        } catch {}
-      }
-
-      // Jika belum ada riwayat order, hapus card sepenuhnya dari database
       if (!item.orderItems || item.orderItems.length === 0) {
         idsToDelete.push(item.id);
       } else {
-        // Jika sudah ada riwayat order, hapus foto dan arsipkan stok agar foreign key tidak error
         idsToArchive.push(item.id);
       }
     }
 
-    // Hapus card produk yang sudah kadaluarsa
     if (idsToDelete.length > 0) {
       await prisma.product.deleteMany({
         where: { id: { in: idsToDelete } },
       });
     }
 
-    // Kosongkan foto dan arsipkan produk yang memiliki riwayat transaksi
     if (idsToArchive.length > 0) {
       await prisma.product.updateMany({
         where: { id: { in: idsToArchive } },
@@ -57,24 +54,15 @@ export async function cleanupExpiredImages() {
       });
     }
 
-    // 2. Bersihkan foto bukti penerimaan pesanan restoran yang sudah > 24 jam
+    // 2. Bersihkan bukti penerimaan pesanan kadaluarsa (> 24 jam)
     const expiredOrders = await prisma.order.findMany({
       where: {
         receivedImageUrl: { not: null },
         receivedImageExpiresAt: { lte: now },
       },
-      select: { id: true, receivedImageUrl: true },
+      select: { id: true },
+      take: batchSize,
     });
-
-    for (const ord of expiredOrders) {
-      if (ord.receivedImageUrl && ord.receivedImageUrl.startsWith("/uploads/")) {
-        const filename = ord.receivedImageUrl.replace("/uploads/", "");
-        const filePath = path.join(process.cwd(), "public", "uploads", filename);
-        try {
-          await unlink(filePath);
-        } catch {}
-      }
-    }
 
     if (expiredOrders.length > 0) {
       await prisma.order.updateMany({
@@ -82,7 +70,14 @@ export async function cleanupExpiredImages() {
         data: { receivedImageUrl: null, receivedImageExpiresAt: null },
       });
     }
+
+    return {
+      deletedProducts: idsToDelete.length,
+      archivedProducts: idsToArchive.length,
+      cleanedOrders: expiredOrders.length,
+    };
   } catch (error) {
     console.error("Gagal menjalankan pembersihan data expired (>24 jam):", error);
+    throw error;
   }
 }
