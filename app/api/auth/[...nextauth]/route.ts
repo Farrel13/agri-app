@@ -118,11 +118,14 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Izinkan URL relatif agar redirect tetap di domain saat ini (misal di Vercel)
-      if (url.startsWith("/")) return url;
+      // Izinkan URL relatif yang aman (hanya diawali satu '/', bukan protocol-relative '//' atau '/\')
+      if (url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/\\")) {
+        return `${baseUrl}${url}`;
+      }
       try {
         const parsedUrl = new URL(url);
-        if (parsedUrl.origin === baseUrl || parsedUrl.hostname.endsWith("vercel.app")) {
+        // Hanya izinkan redirect jika origin tepat sama dengan baseUrl (Cegah Open Redirect)
+        if (parsedUrl.origin === baseUrl) {
           return url;
         }
       } catch {

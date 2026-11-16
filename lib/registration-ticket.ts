@@ -1,6 +1,15 @@
 import crypto from "crypto";
 
-const SECRET = process.env.NEXTAUTH_SECRET || "agri_app_secure_registration_salt_2026";
+function getSecret(): string {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("NEXTAUTH_SECRET wajib dikonfigurasi di environment server!");
+    }
+    return "agri_app_dev_local_only_secret_do_not_use_in_prod";
+  }
+  return secret;
+}
 
 export interface TicketValidationResult {
   valid: boolean;
@@ -18,7 +27,7 @@ export function generateRegistrationTicket(): string {
   const timestamp = Date.now();
   const nonce = crypto.randomBytes(16).toString("hex");
   const payload = `${timestamp}:${nonce}`;
-  const signature = crypto.createHmac("sha256", SECRET).update(payload).digest("hex");
+  const signature = crypto.createHmac("sha256", getSecret()).update(payload).digest("hex");
   return `${timestamp}.${nonce}.${signature}`;
 }
 
@@ -63,7 +72,7 @@ export function verifyRegistrationTicket(
 
   // Verifikasi Tanda Tangan HMAC dengan timing-safe comparison
   const expectedPayload = `${timestamp}:${nonce}`;
-  const expectedSignature = crypto.createHmac("sha256", SECRET).update(expectedPayload).digest("hex");
+  const expectedSignature = crypto.createHmac("sha256", getSecret()).update(expectedPayload).digest("hex");
 
   const sigBuffer = Buffer.from(signature, "hex");
   const expectedBuffer = Buffer.from(expectedSignature, "hex");

@@ -41,15 +41,24 @@ export async function middleware(req: NextRequest) {
     return res;
   };
 
+  // Helper untuk mencocokkan route prefix dengan batas segmen '/' yang valid
+  const matchRoutePrefix = (path: string, prefix: string) =>
+    path === prefix || path.startsWith(`${prefix}/`);
+
   // 1. Jika belum login dan mencoba mengakses protected routes
   const isProtected =
-    url.startsWith("/petani") ||
-    url.startsWith("/hub") ||
-    url.startsWith("/restoran") ||
-    url.startsWith("/admin");
+    matchRoutePrefix(url, "/petani") ||
+    matchRoutePrefix(url, "/hub") ||
+    matchRoutePrefix(url, "/restoran") ||
+    matchRoutePrefix(url, "/admin");
 
   if (isProtected && !token) {
-    return createRedirect(`/login?callbackUrl=${encodeURIComponent(url)}`);
+    // Pastikan path callbackUrl valid relatif lokal
+    const safeUrl =
+      url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/\\")
+        ? url
+        : "/";
+    return createRedirect(`/login?callbackUrl=${encodeURIComponent(safeUrl)}`);
   }
 
   // 2. Jika SUDAH login tapi membuka halaman login atau register, redirect ke dashboard role masing-masing
@@ -62,10 +71,10 @@ export async function middleware(req: NextRequest) {
   }
 
   // 3. Batasi akses role (RBAC)
-  if (url.startsWith("/petani") && role !== "PETANI") return createRedirect("/");
-  if (url.startsWith("/hub") && role !== "HUB") return createRedirect("/");
-  if (url.startsWith("/restoran") && role !== "RESTAURANT") return createRedirect("/");
-  if (url.startsWith("/admin") && role !== "ADMIN") return createRedirect("/");
+  if (matchRoutePrefix(url, "/petani") && role !== "PETANI") return createRedirect("/");
+  if (matchRoutePrefix(url, "/hub") && role !== "HUB") return createRedirect("/");
+  if (matchRoutePrefix(url, "/restoran") && role !== "RESTAURANT") return createRedirect("/");
+  if (matchRoutePrefix(url, "/admin") && role !== "ADMIN") return createRedirect("/");
 
   // Teruskan request yang terotorisasi secara normal
   return NextResponse.next();

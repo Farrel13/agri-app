@@ -316,6 +316,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Pesan terlalu panjang (maks 1000 karakter)." }, { status: 400 });
   }
 
+  // Validasi & sanitasi history percakapan: cegah role spoofing, invalid structure, dan payload flooding
+  const sanitizedHistory: { role: "user" | "model"; parts: { text: string }[] }[] = [];
+  if (Array.isArray(history)) {
+    // Batasi maksimal 10 giliran chat terakhir
+    const bounded = history.slice(-10);
+    for (const item of bounded) {
+      if (
+        item &&
+        (item.role === "user" || item.role === "model") &&
+        Array.isArray(item.parts) &&
+        item.parts.length > 0
+      ) {
+        const validParts = item.parts
+          .filter((p) => p && typeof p.text === "string" && p.text.trim().length > 0)
+          .map((p) => ({ text: p.text.slice(0, 1000) }));
+        if (validParts.length > 0) {
+          sanitizedHistory.push({
+            role: item.role,
+            parts: validParts,
+          });
+        }
+      }
+    }
+  }
+
   // Ambil data kontekstual dari DB sesuai role
   const user = session.user as { id: string; role: string; name: string };
   const { id: userId, role, name } = user;
@@ -417,7 +442,7 @@ KEBIJAKAN HAK AKSES INFORMASI (RBAC POLICY):
         });
 
         const chat = model.startChat({
-          history: history || [],
+          history: sanitizedHistory,
           generationConfig: {
             maxOutputTokens: 512,
             temperature: 0.2,

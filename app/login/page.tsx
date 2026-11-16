@@ -2,24 +2,38 @@
 
 import { signIn, useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const router = useRouter();
   const { data: session, status } = useSession();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Helper untuk memvalidasi callbackUrl lokal yang aman (Cegah Open Redirect & DOM XSS)
+  const getSafeCallbackUrl = (raw: string | null): string | null => {
+    if (!raw) return null;
+    const trimmed = raw.trim();
+    // Hanya izinkan path relatif lokal tunggal yang tidak diawali '//', '/\', 'javascript:', atau loop ke '/login'
+    if (
+      trimmed.startsWith("/") &&
+      !trimmed.startsWith("//") &&
+      !trimmed.startsWith("/\\") &&
+      !trimmed.startsWith("/login")
+    ) {
+      return trimmed;
+    }
+    return null;
+  };
+
   // Jika sudah terotentikasi, otomatis alihkan ke halaman callbackUrl atau dashboard role
   useEffect(() => {
     if (status === "authenticated" && session) {
       const params = new URLSearchParams(window.location.search);
-      const callbackUrl = params.get("callbackUrl");
-      if (callbackUrl && !callbackUrl.startsWith("/login")) {
-        window.location.href = callbackUrl;
+      const safeCallback = getSafeCallbackUrl(params.get("callbackUrl"));
+      if (safeCallback) {
+        window.location.href = safeCallback;
       } else {
         const role = session.user?.role;
         if (role === "PETANI") window.location.href = "/petani";
@@ -48,8 +62,8 @@ export default function LoginPage() {
       setError("Login gagal. Periksa kembali data Anda.");
     } else {
       const params = new URLSearchParams(window.location.search);
-      const callbackUrl = params.get("callbackUrl");
-      window.location.href = callbackUrl && !callbackUrl.startsWith("/login") ? callbackUrl : "/";
+      const safeCallback = getSafeCallbackUrl(params.get("callbackUrl"));
+      window.location.href = safeCallback || "/";
     }
   };
 

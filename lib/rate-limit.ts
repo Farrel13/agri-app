@@ -163,11 +163,11 @@ export function getClientIp(
   const realIp = getHeader("x-real-ip");
   if (realIp) return realIp.trim();
 
-  // 2. Jika membaca x-forwarded-for, ambil IP paling kanan untuk mencegah header spoofing dari client
+  // 2. Jika membaca x-forwarded-for, ambil IP paling kiri (client IP asli yang memulai request)
   const forwardedFor = getHeader("x-forwarded-for");
   if (forwardedFor) {
     const parts = forwardedFor.split(",").map((s) => s.trim()).filter(Boolean);
-    return parts[parts.length - 1] || parts[0] || "127.0.0.1";
+    return parts[0] || "127.0.0.1";
   }
 
   return "127.0.0.1";

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cleanupExpiredImages } from "@/lib/cleanup";
+import crypto from "crypto";
 
 // Maksimal durasi eksekusi untuk Vercel Serverless Function (maks 60s pada runtime yang mendukung)
 export const maxDuration = 60;
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
   try {
     // Proteksi Otorisasi: Wajibkan Bearer CRON_SECRET jika di production atau jika env diset
     const cronSecret = process.env.CRON_SECRET;
-    const authHeader = request.headers.get("authorization");
+    const authHeader = request.headers.get("authorization") || "";
 
     if (process.env.NODE_ENV === "production" && !cronSecret) {
       return NextResponse.json(
@@ -21,7 +22,19 @@ export async function GET(request: Request) {
       );
     }
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (cronSecret) {
+      const expectedHeader = `Bearer ${cronSecret}`;
+      const expectedBuf = Buffer.from(expectedHeader);
+      const actualBuf = Buffer.from(authHeader);
+
+      // Gunakan timing-safe comparison untuk mencegah serangan analisis waktu (Timing Attacks)
+      if (
+        expectedBuf.length !== actualBuf.length ||
+        !crypto.timingSafeEqual(expectedBuf, actualBuf)
+      ) {
+        return NextResponse.json({ message: "Akses cron ditolak (Unauthorized)." }, { status: 401 });
+      }
+    } else if (process.env.NODE_ENV === "production") {
       return NextResponse.json({ message: "Akses cron ditolak (Unauthorized)." }, { status: 401 });
     }
 
