@@ -18,6 +18,11 @@ export default async function HomePage() {
   // Jika belum login, tampilkan Landing Page Publik
   return (
     <div className="min-h-screen bg-white text-gray-800 flex flex-col font-sans">
+      {/* Banner Informasi Masa Percobaan */}
+      <div className="bg-amber-50 border-b border-amber-200 text-amber-800 px-4 py-2.5 text-center text-xs sm:text-sm font-medium">
+        ⚠️ <strong>Perhatian:</strong> Aplikasi ini masih dalam masa percobaan, mohon jangan gunakan data identitas asli.
+      </div>
+
       {/* Navbar sticky */}
       <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -51,6 +56,14 @@ export default async function HomePage() {
       <main className="flex-1">
         <section className="min-h-[calc(100vh-56px)] flex items-center justify-center px-4 py-16">
           <div className="max-w-2xl mx-auto text-center">
+            {/* Badge Peringatan Masa Percobaan */}
+            <div className="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm">
+              <span>⚠️</span>
+              <span>
+                <strong>Masa Percobaan:</strong> Jangan pakai data identitas asli Anda (hanya untuk pengujian sistem).
+              </span>
+            </div>
+
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight tracking-tight">
               Bahan Baku Segar,<br className="hidden sm:block" /> Langsung dari Petani.
             </h1>

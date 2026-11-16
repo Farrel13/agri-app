@@ -8,7 +8,10 @@ import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit
 // Izinkan durasi streaming hingga 30 detik untuk mengakomodasi latensi Gemini AI
 export const maxDuration = 30;
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
+function getGenAI() {
+  const apiKey = process.env.GOOGLE_AI_API_KEY?.trim() || "";
+  return new GoogleGenerativeAI(apiKey);
+}
 
 // ============================
 // Helpers: Ambil data DB sesuai role
@@ -384,22 +387,56 @@ KEBIJAKAN HAK AKSES INFORMASI (RBAC POLICY):
    - Tolak pertanyaan di luar konteks ekosistem AgriApp dengan singkat: "Saya hanya melayani konsultasi data dan operasional AgriApp."`;
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      systemInstruction: systemPrompt,
-    });
+    const apiKey = process.env.GOOGLE_AI_API_KEY?.trim();
+    if (!apiKey || apiKey.length < 10 || apiKey.includes("Anti-Prompt")) {
+      console.error("[Chatbot] GOOGLE_AI_API_KEY belum dikonfigurasi dengan benar.");
+      return NextResponse.json(
+        { error: "Layanan Agri-AI belum dapat digunakan karena API key belum dikonfigurasi. Silakan periksa pengaturan lingkungan server." },
+        { status: 503 }
+      );
+    }
 
-    const chat = model.startChat({
-      history: history || [],
-      generationConfig: {
-        maxOutputTokens: 512,
-        temperature: 0.2,
-      },
-    });
+    const genAI = getGenAI();
+    const modelCandidates = [
+      process.env.GEMINI_MODEL,
+      "gemini-3.5-flash-lite",
+      "gemini-2.5-flash",
+      "gemini-1.5-flash",
+    ].filter(Boolean) as string[];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let result: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let lastErr: any;
+
+    for (const modelName of modelCandidates) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: systemPrompt,
+        });
+
+        const chat = model.startChat({
+          history: history || [],
+          generationConfig: {
+            maxOutputTokens: 512,
+            temperature: 0.2,
+          },
+        });
+
+        result = await chat.sendMessageStream(message.trim());
+        if (result) break;
+      } catch (err: unknown) {
+        lastErr = err;
+        console.warn(`[Chatbot] Model ${modelName} gagal:`, err);
+      }
+    }
+
+    if (!result) {
+      throw lastErr || new Error("Semua kandidat model Gemini gagal diakses.");
+    }
 
     // Stream response
-    const result = await chat.sendMessageStream(message.trim());
-
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
@@ -410,6 +447,8 @@ KEBIJAKAN HAK AKSES INFORMASI (RBAC POLICY):
               controller.enqueue(encoder.encode(text));
             }
           }
+        } catch (streamErr) {
+          console.error("[Chatbot] Stream processing error:", streamErr);
         } finally {
           controller.close();
         }
