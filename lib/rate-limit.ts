@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { logWafEvent } from "./system-logger";
 
 interface RateLimitStore {
   count: number;
@@ -204,6 +205,21 @@ export async function checkServerActionRateLimit(
   const key = `action_${actionName}_${identifier}`;
   const check = await checkRateLimit(key, maxRequests, windowMs);
   if (!check.success) {
+    // Catat ke WAF Activity Log (OWASP A04 / A09)
+    logWafEvent({
+      severity: "WARN",
+      action: "RATE_LIMIT_EXCEEDED",
+      message: `Batas laju kueri terlampaui pada aksi '${actionName}'. Permintaan diblokir oleh WAF.`,
+      endpoint: `ServerAction:${actionName}`,
+      ipAddress: identifier,
+      metadata: {
+        actionName,
+        maxRequests,
+        windowMs,
+        resetTime: check.reset,
+      },
+    }).catch(() => {});
+
     return {
       allowed: false,
       message: "Terlalu banyak permintaan. Silakan tunggu beberapa saat sebelum mencoba kembali.",

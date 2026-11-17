@@ -1,4 +1,5 @@
-import { prisma } from "./prisma";
+import { logSystemEvent, logWafEvent, logServerEvent } from "./system-logger";
+import type { LogSeverity } from "@prisma/client";
 
 type LogLevel = "INFO" | "WARN" | "SECURITY_ALERT" | "ERROR";
 
@@ -14,6 +15,7 @@ interface SecurityLogParams {
  * Modul Logging Terstruktur untuk Audit Keamanan (OWASP A09)
  * - Mencegah kebocoran data sensitif (password, secret token, credential)
  * - Mencatat event anomali, serangan brute-force, dan aksi manipulasi role
+ * - Terintegrasi dengan basis data PostgreSQL untuk visualisasi di Admin Dashboard
  */
 export function logSecurityEvent({
   level,
@@ -22,37 +24,42 @@ export function logSecurityEvent({
   ip = null,
   details = {},
 }: SecurityLogParams) {
-  const timestamp = new Date().toISOString();
+  // Mapping level ke LogSeverity Prisma
+  let severity: LogSeverity = "INFO";
+  if (level === "WARN") severity = "WARN";
+  else if (level === "SECURITY_ALERT") severity = "ALERT";
+  else if (level === "ERROR") severity = "CRITICAL";
 
-  // Sanitasi detail agar tidak pernah membocorkan password atau kredensial rahasia
-  let sanitizedDetails = details;
-  if (typeof details === "object" && details !== null) {
-    const clone = { ...details } as Record<string, unknown>;
-    const sensitiveKeys = ["password", "token", "secret", "creditCard", "authorization"];
-    for (const key of Object.keys(clone)) {
-      if (sensitiveKeys.some((s) => key.toLowerCase().includes(s))) {
-        clone[key] = "[REDACTED]";
-      }
-    }
-    sanitizedDetails = clone;
+  // Identifikasi tipe log (WAF / AUTH / SECURITY)
+  let type: "WAF" | "SECURITY" | "AUTH" = "SECURITY";
+  if (
+    action.includes("WAF") ||
+    action.includes("RATE_LIMIT") ||
+    action.includes("INJECTION") ||
+    action.includes("TRAVERSAL") ||
+    action.includes("MAGIC_BYTES") ||
+    action.includes("SSRF")
+  ) {
+    type = "WAF";
+  } else if (action.startsWith("AUTH_")) {
+    type = "AUTH";
   }
 
-  const logPayload = {
-    timestamp,
-    level,
+  const meta =
+    typeof details === "string"
+      ? { note: details }
+      : (details as Record<string, unknown>);
+
+  // Catat ke sistem log asinkron
+  logSystemEvent({
+    type,
+    severity,
     action,
+    message: `Kejadian Keamanan: ${action}`,
+    ipAddress: ip,
     userId,
-    ip,
-    details: sanitizedDetails,
-  };
-
-  const formattedLog = `[SECURITY_AUDIT] ${JSON.stringify(logPayload)}`;
-
-  if (level === "SECURITY_ALERT" || level === "ERROR") {
-    console.error(formattedLog);
-  } else if (level === "WARN") {
-    console.warn(formattedLog);
-  } else {
-    console.info(formattedLog);
-  }
+    metadata: meta,
+  }).catch(() => {});
 }
+
+export { logSystemEvent, logWafEvent, logServerEvent };

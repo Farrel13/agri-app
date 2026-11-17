@@ -200,6 +200,65 @@ async function main() {
         productId: produk1.id,
       },
     });
+
+    // Seeding Log Aktivitas WAF & Server awal untuk pengawasan Admin
+    const logCount = await prisma.systemLog.count();
+    if (logCount === 0) {
+      await prisma.systemLog.createMany({
+        data: [
+          {
+            type: "SERVER",
+            severity: "INFO",
+            action: "SERVER_INITIALIZE",
+            message: "Sistem AgriApp dan koneksi PostgreSQL Neon berhasil diinisialisasi.",
+            endpoint: "System:Bootstrap",
+            method: "SYSTEM",
+            ipAddress: "127.0.0.1",
+            metadata: { nodeVersion: process.version, environment: "production" },
+          },
+          {
+            type: "WAF",
+            severity: "WARN",
+            action: "RATE_LIMIT_EXCEEDED",
+            message: "Batas laju kueri terlampaui pada endpoint '/api/auth/signin'. Permintaan ditahan 60 detik.",
+            endpoint: "/api/auth/signin",
+            method: "POST",
+            ipAddress: "198.51.100.44",
+            metadata: { maxRequests: 5, currentCount: 6, windowSeconds: 60 },
+          },
+          {
+            type: "WAF",
+            severity: "CRITICAL",
+            action: "SQL_INJECTION_DETECTED",
+            message: "Ancaman SQL Injection terdeteksi dalam kueri parameter URL: Pola 'UNION SELECT' diblokir oleh WAF.",
+            endpoint: "/api/products?search=' UNION SELECT username, password FROM users --",
+            method: "GET",
+            ipAddress: "203.0.113.88",
+            metadata: { payload: "' UNION SELECT username, password FROM users --", threat: "CWE-89: SQL Injection" },
+          },
+          {
+            type: "WAF",
+            severity: "ALERT",
+            action: "MAGIC_BYTES_REJECTED",
+            message: "Format berkas 'webshell.php.png' ditolak: verifikasi biner (magic bytes) gagal.",
+            endpoint: "ServerAction:tambahPanenAction",
+            method: "POST",
+            ipAddress: "198.51.100.72",
+            metadata: { fileName: "webshell.php.png", threat: "OWASP A08: Malicious Polyglot File" },
+          },
+          {
+            type: "SERVER",
+            severity: "INFO",
+            action: "CRON_CLEANUP_EXECUTED",
+            message: "Cron job pembersihan foto kadaluarsa (>24 jam) selesai secara otomatis.",
+            endpoint: "/api/cron/cleanup",
+            method: "GET",
+            ipAddress: "127.0.0.1",
+            metadata: { deletedProducts: 0, archivedProducts: 0, cleanedOrders: 0 },
+          },
+        ],
+      });
+    }
   }
 
   console.log("Seeding data lengkap (User, Address, Product, Order, OrderItem, Payment, Review, Notification) sukses!");

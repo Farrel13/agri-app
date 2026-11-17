@@ -1,5 +1,6 @@
 import { URL } from "url";
 import net from "net";
+import { logWafEvent } from "./system-logger";
 
 /**
  * Memeriksa apakah alamat IP merupakan IP privat, loopback, link-local, multicast, atau reserved
@@ -94,11 +95,23 @@ export function isSafeUrl(rawUrl: string, allowedProtocols = ["https:"]): { isSa
       cleanHost.endsWith(".local") ||
       cleanHost.endsWith(".onion")
     ) {
+      logWafEvent({
+        severity: "ALERT",
+        action: "SSRF_HOST_BLOCKED",
+        message: `Percobaan SSRF ke host terlarang: ${cleanHost}`,
+        metadata: { url: rawUrl, host: cleanHost },
+      }).catch(() => {});
       return { isSafe: false, reason: "Akses ke host internal/lokal dilarang." };
     }
 
     // 3. Blokir alamat IP privat, loopback, link-local, dan cloud metadata
     if (isPrivateIpAddress(cleanHost)) {
+      logWafEvent({
+        severity: "CRITICAL",
+        action: "SSRF_PRIVATE_IP_BLOCKED",
+        message: `Percobaan SSRF ke IP privat / metadata terlarang: ${cleanHost}`,
+        metadata: { url: rawUrl, ip: cleanHost },
+      }).catch(() => {});
       return { isSafe: false, reason: "Akses ke alamat IP privat/internal server dilarang (Anti-SSRF)." };
     }
 

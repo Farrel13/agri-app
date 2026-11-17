@@ -5,6 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import AdminClient from "./AdminClient";
+import { getServerSystemMetrics } from "@/lib/system-logger";
 
 export default async function AdminDashboardPage() {
   const session = await getServerSession(authOptions);
@@ -54,6 +55,21 @@ export default async function AdminDashboardPage() {
     take: 50,
   });
 
+  // Ambil log WAF dan log Server awal
+  const [wafLogs, serverLogs, metrics] = await Promise.all([
+    prisma.systemLog.findMany({
+      where: { type: "WAF" },
+      orderBy: { createdAt: "desc" },
+      take: 40,
+    }),
+    prisma.systemLog.findMany({
+      where: { type: { in: ["SERVER", "SECURITY", "AUTH"] } },
+      orderBy: { createdAt: "desc" },
+      take: 40,
+    }),
+    getServerSystemMetrics(),
+  ]);
+
   // Hitung metrik platform
   const totalUsers = users.length;
   const petaniCount = users.filter((u) => u.role === "PETANI").length;
@@ -71,5 +87,24 @@ export default async function AdminDashboardPage() {
     totalGMV,
   };
 
-  return <AdminClient users={users} orders={orders} stats={stats} />;
+  const serializedWafLogs = wafLogs.map((l) => ({
+    ...l,
+    createdAt: l.createdAt.toISOString(),
+  }));
+
+  const serializedServerLogs = serverLogs.map((l) => ({
+    ...l,
+    createdAt: l.createdAt.toISOString(),
+  }));
+
+  return (
+    <AdminClient
+      users={users}
+      orders={orders}
+      stats={stats}
+      initialWafLogs={serializedWafLogs}
+      initialServerLogs={serializedServerLogs}
+      initialMetrics={metrics}
+    />
+  );
 }

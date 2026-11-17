@@ -1,3 +1,5 @@
+import { logWafEvent } from "./system-logger";
+
 /**
  * File Security & Magic Byte Inspector (Forensik Biner Berkas)
  * 
@@ -92,6 +94,13 @@ export function validateImageBuffer(buffer: Buffer, maxSizeBytes = 3 * 1024 * 10
   }
 
   if (detectedType === "unknown") {
+    logWafEvent({
+      severity: "WARN",
+      action: "MAGIC_BYTES_REJECTED",
+      message: "Format berkas ditolak. Verifikasi biner (magic bytes) gagal.",
+      metadata: { bufferSize: buffer.length },
+    }).catch(() => {});
+
     return {
       isValid: false,
       detectedType: "unknown",
@@ -105,6 +114,13 @@ export function validateImageBuffer(buffer: Buffer, maxSizeBytes = 3 * 1024 * 10
   const asciiContent = buffer.toString("latin1").toLowerCase();
   for (const pattern of DANGEROUS_PATTERNS) {
     if (asciiContent.includes(pattern)) {
+      logWafEvent({
+        severity: "CRITICAL",
+        action: "POLYGLOT_PAYLOAD_BLOCKED",
+        message: `Berkas gambar mengandung kode berbahaya / backdoor script: '${pattern}'`,
+        metadata: { pattern, detectedType },
+      }).catch(() => {});
+
       return {
         isValid: false,
         detectedType,

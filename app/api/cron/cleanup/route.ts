@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cleanupExpiredImages } from "@/lib/cleanup";
+import { logServerEvent } from "@/lib/system-logger";
 import crypto from "crypto";
 
 // Maksimal durasi eksekusi untuk Vercel Serverless Function (maks 60s pada runtime yang mendukung)
@@ -39,6 +40,15 @@ export async function GET(request: Request) {
     }
 
     const result = await cleanupExpiredImages(50);
+
+    logServerEvent({
+      severity: "INFO",
+      action: "CRON_CLEANUP_EXECUTED",
+      message: `Pembersihan foto kadaluarsa (>24 jam) selesai. Dihapus: ${result.deletedProducts}, Diarsipkan: ${result.archivedProducts}, Pesanan: ${result.cleanedOrders}`,
+      endpoint: "/api/cron/cleanup",
+      method: "GET",
+      metadata: { ...result },
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,

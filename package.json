@@ -15,7 +15,7 @@
     "@upstash/ratelimit": "^2.2.0",
     "@upstash/redis": "^1.41.0",
     "bcryptjs": "^3.0.3",
-    "next": "16.4.2",
+    "next": "^16.4.6",
     "next-auth": "^4.24.15",
     "react": "19.3.0",
     "react-dom": "19.3.0"
@@ -30,7 +30,7 @@
     "@types/react-dom": "^19",
     "autoprefixer": "^10.6.2",
     "eslint": "^9",
-    "eslint-config-next": "16.4.2",
+    "eslint-config-next": "^16.4.6",
     "pdf-lib": "^1.17.1",
     "postcss": "^8.5.32",
     "prisma": "^5.22.0",

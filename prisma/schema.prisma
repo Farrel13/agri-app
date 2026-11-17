@@ -50,6 +50,20 @@ enum NotificationType {
   SISTEM
 }
 
+enum LogType {
+  WAF
+  SERVER
+  SECURITY
+  AUTH
+}
+
+enum LogSeverity {
+  INFO
+  WARN
+  ALERT
+  CRITICAL
+}
+
 // ==========================================
 // 1. MODEL USER
 // ==========================================
@@ -265,4 +279,27 @@ model Notification {
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime         @default(now())
+}
+
+// ==========================================
+// 9. MODEL SYSTEM LOG (Audit Aktivitas WAF & Server)
+// ==========================================
+model SystemLog {
+  id         String      @id @default(cuid())
+  type       LogType     @default(SERVER)
+  severity   LogSeverity @default(INFO)
+  action     String      // Misal: RATE_LIMIT_BLOCKED, WAF_INSPECTION_BLOCKED, UNAUTHORIZED_ACCESS, MAGIC_BYTES_REJECTED, SSRF_BLOCKED, CRON_CLEANUP, SERVER_METRIC, ADMIN_ACTION
+  message    String
+  endpoint   String?
+  method     String?
+  ipAddress  String?
+  userAgent  String?
+  userId     String?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  @@index([type])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([action])
 }

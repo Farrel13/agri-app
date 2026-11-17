@@ -45,6 +45,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "3.5mb", // Diselaraskan dengan batas validasi file (2MB) + overhead multipart di bawah batas 4.5MB Vercel
     },
+    agentUpgrade: "security",
   },
   turbopack: {
     rules: {
