@@ -47,6 +47,15 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "https://agri-app-tawny.vercel.app",
+          },
+        ],
+      },
     ];
   },
   experimental: {
