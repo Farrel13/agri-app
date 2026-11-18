@@ -2,6 +2,29 @@ import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// Helper terpusat untuk menginjeksi seluruh security headers pada setiap respons (termasuk error, redirect, dan API)
+const applySecurityHeaders = (res: NextResponse) => {
+  res.headers.set("X-DNS-Prefetch-Control", "on");
+  res.headers.set(
+    "Strict-Transport-Security",
+    "max-age=63072000; includeSubDomains; preload"
+  );
+  res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("Referrer-Policy", "origin-when-cross-origin");
+  res.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()"
+  );
+  res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  res.headers.set("Cross-Origin-Resource-Policy", "same-origin");
+  res.headers.set(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.vercel.app; font-src 'self' data:; connect-src 'self' https://*.vercel.app; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;"
+  );
+  return res;
+};
+
 export async function middleware(req: NextRequest) {
   const url = req.nextUrl.pathname;
 
@@ -9,7 +32,7 @@ export async function middleware(req: NextRequest) {
   const matchRoutePrefix = (path: string, prefix: string) =>
     path === prefix || path.startsWith(`${prefix}/`);
 
-  // Helper untuk redirect dengan header anti-cache
+  // Helper untuk redirect dengan header anti-cache & security headers lengkap
   const createRedirect = (target: string) => {
     const res = NextResponse.redirect(new URL(target, req.url));
     res.headers.set(
@@ -18,8 +41,46 @@ export async function middleware(req: NextRequest) {
     );
     res.headers.set("Pragma", "no-cache");
     res.headers.set("Expires", "0");
-    return res;
+    return applySecurityHeaders(res);
   };
+
+  // Helper untuk respons blokir WAF dengan status error dan security headers lengkap
+  const createBlockedResponse = (message: string, status = 403) => {
+    const res = new NextResponse(JSON.stringify({ error: message }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+    return applySecurityHeaders(res);
+  };
+
+  // Validasi CORS & Isolasi Domain: Mencegah domain pihak ketiga sembarang membaca respons API
+  const origin = req.headers.get("origin");
+  const host = req.headers.get("host") || "";
+  const isAllowedOrigin =
+    !origin ||
+    origin.includes(host) ||
+    origin.includes("localhost") ||
+    origin.includes("127.0.0.1") ||
+    origin.endsWith(".vercel.app");
+
+  if (req.method === "OPTIONS") {
+    if (!isAllowedOrigin) {
+      return applySecurityHeaders(new NextResponse(null, { status: 403 }));
+    }
+    const preflightRes = new NextResponse(null, { status: 204 });
+    preflightRes.headers.set("Access-Control-Allow-Origin", origin || "");
+    preflightRes.headers.set(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, OPTIONS"
+    );
+    preflightRes.headers.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization"
+    );
+    preflightRes.headers.set("Access-Control-Allow-Credentials", "true");
+    preflightRes.headers.set("Vary", "Origin");
+    return applySecurityHeaders(preflightRes);
+  }
 
   // Helper untuk mencatat WAF event asinkron
   const sendWafAlert = (
@@ -69,10 +130,7 @@ export async function middleware(req: NextRequest) {
         "CRITICAL",
         { url, search: req.nextUrl.search }
       );
-      return new NextResponse(
-        JSON.stringify({ error: "Permintaan diblokir oleh WAF AgriApp (Path Traversal terdeteksi)." }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      );
+      return createBlockedResponse("Permintaan diblokir oleh WAF AgriApp (Path Traversal terdeteksi).");
     }
 
     // Deteksi Probe Berkas Sensitif / Scanning Bot
@@ -89,10 +147,7 @@ export async function middleware(req: NextRequest) {
         "CRITICAL",
         { url }
       );
-      return new NextResponse(
-        JSON.stringify({ error: "Akses ditolak oleh Firewall Keamanan Sistem." }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      );
+      return createBlockedResponse("Akses ditolak oleh Firewall Keamanan Sistem.");
     }
 
     // Deteksi Pola XSS (Cross-Site Scripting) dalam query URL
@@ -108,10 +163,7 @@ export async function middleware(req: NextRequest) {
         "ALERT",
         { search: req.nextUrl.search }
       );
-      return new NextResponse(
-        JSON.stringify({ error: "Permintaan diblokir oleh WAF AgriApp (Pola XSS terdeteksi)." }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      );
+      return createBlockedResponse("Permintaan diblokir oleh WAF AgriApp (Pola XSS terdeteksi).");
     }
 
     // Deteksi Pola SQL Injection dalam query URL
@@ -128,10 +180,7 @@ export async function middleware(req: NextRequest) {
         "CRITICAL",
         { search: req.nextUrl.search }
       );
-      return new NextResponse(
-        JSON.stringify({ error: "Permintaan diblokir oleh WAF AgriApp (Pola SQL Injection terdeteksi)." }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      );
+      return createBlockedResponse("Permintaan diblokir oleh WAF AgriApp (Pola SQL Injection terdeteksi).");
     }
   }
 
@@ -206,8 +255,13 @@ export async function middleware(req: NextRequest) {
     return createRedirect("/");
   }
 
-  // Teruskan request yang terotorisasi secara normal
-  return NextResponse.next();
+  // Teruskan request yang terotorisasi secara normal dengan seluruh security headers
+  const res = NextResponse.next();
+  if (origin && isAllowedOrigin) {
+    res.headers.set("Access-Control-Allow-Origin", origin);
+    res.headers.set("Vary", "Origin");
+  }
+  return applySecurityHeaders(res);
 }
 
 export const config = {
