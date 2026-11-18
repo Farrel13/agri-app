@@ -18,6 +18,34 @@ interface GeminiHistory {
   parts: { text: string }[];
 }
 
+// Komponen render markdown aman tanpa dangerouslySetInnerHTML (100% kebal injeksi XSS)
+function SafeMarkdown({ content }: { content: string }) {
+  const lines = content.split("\n");
+  return (
+    <div className="whitespace-pre-wrap leading-relaxed">
+      {lines.map((line, lineIdx) => {
+        const isBullet = line.startsWith("• ") || line.startsWith("- ");
+        const cleanLine = isBullet ? "• " + line.replace(/^[-•]\s*/, "") : line;
+        const parts = cleanLine.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+        return (
+          <span key={lineIdx}>
+            {parts.map((part, partIdx) => {
+              if (part.startsWith("**") && part.endsWith("**")) {
+                return <strong key={partIdx}>{part.slice(2, -2)}</strong>;
+              }
+              if (part.startsWith("*") && part.endsWith("*")) {
+                return <em key={partIdx}>{part.slice(1, -1)}</em>;
+              }
+              return part;
+            })}
+            {lineIdx < lines.length - 1 && "\n"}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 // Saran pertanyaan per role
 const SUGGESTIONS: Record<string, string[]> = {
   PETANI: [
@@ -287,20 +315,8 @@ export default function ChatBot() {
                       : "bg-white text-gray-800 rounded-bl-sm border border-gray-100"
                   }`}
                 >
-                  {/* Render basic markdown: bold */}
-                  <div
-                    className="whitespace-pre-wrap leading-relaxed"
-                    dangerouslySetInnerHTML={{
-                      __html: msg.content
-                        .replace(/&/g, "&amp;")
-                        .replace(/</g, "&lt;")
-                        .replace(/>/g, "&gt;")
-                        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                        .replace(/\*(.*?)\*/g, "<em>$1</em>")
-                        .replace(/^• /gm, "• ")
-                        .replace(/^- /gm, "• "),
-                    }}
-                  />
+                  {/* Render basic markdown: bold secara aman tanpa dangerouslySetInnerHTML */}
+                  <SafeMarkdown content={msg.content} />
                   {msg.isStreaming && (
                     <span className="inline-block w-1.5 h-4 bg-green-500 ml-1 animate-pulse rounded" />
                   )}
