@@ -25,6 +25,37 @@ const applySecurityHeaders = (res: NextResponse) => {
   return res;
 };
 
+// Store in-memory khusus Edge untuk Rate Limiting Brute Force Login
+interface EdgeRateLimitRecord {
+  count: number;
+  resetTime: number;
+}
+const loginRateLimitMap = new Map<string, EdgeRateLimitRecord>();
+
+function checkLoginEdgeRateLimit(
+  ip: string,
+  maxAttempts = 5,
+  windowMs = 60 * 1000
+): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const record = loginRateLimitMap.get(ip);
+
+  if (!record || now > record.resetTime) {
+    loginRateLimitMap.set(ip, {
+      count: 1,
+      resetTime: now + windowMs,
+    });
+    return { allowed: true, remaining: maxAttempts - 1 };
+  }
+
+  if (record.count >= maxAttempts) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  record.count += 1;
+  return { allowed: true, remaining: maxAttempts - record.count };
+}
+
 export async function middleware(req: NextRequest) {
   const url = req.nextUrl.pathname;
 
@@ -112,7 +143,40 @@ export async function middleware(req: NextRequest) {
     } catch {}
   };
 
-  // 0. INSPEKSI WAF (Web Application Firewall) - Mencegah ancaman OWASP Top 10
+  // 0. RATE LIMITING LOGIN: Blokir brute-force login pada Vercel Edge dengan status 429
+  if (req.method === "POST" && url.includes("/api/auth/callback/credentials")) {
+    const clientIp =
+      req.headers.get("x-vercel-ip") ||
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "127.0.0.1";
+
+    const rateCheck = checkLoginEdgeRateLimit(clientIp, 5, 60 * 1000);
+    if (!rateCheck.allowed) {
+      sendWafAlert(
+        "AUTH_BRUTE_FORCE_BLOCKED",
+        `Percobaan brute-force login terdeteksi dari IP ${clientIp}. Diblokir oleh Rate Limiter Edge.`,
+        "SECURITY_ALERT",
+        { ip: clientIp, endpoint: url }
+      );
+
+      const rateLimitRes = new NextResponse(
+        JSON.stringify({
+          error: "Terlalu banyak percobaan login gagal. Silakan coba lagi setelah 1 menit.",
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": "60",
+          },
+        }
+      );
+      return applySecurityHeaders(rateLimitRes);
+    }
+  }
+
+  // 1. INSPEKSI WAF (Web Application Firewall) - Mencegah ancaman OWASP Top 10
   if (url !== "/api/waf/log") {
     const fullQuery = (req.nextUrl.search || "").toLowerCase();
     const fullPath = url.toLowerCase();
