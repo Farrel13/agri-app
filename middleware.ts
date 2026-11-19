@@ -34,7 +34,7 @@ const loginRateLimitMap = new Map<string, EdgeRateLimitRecord>();
 
 function checkLoginEdgeRateLimit(
   ip: string,
-  maxAttempts = 5,
+  maxAttempts = 3,
   windowMs = 60 * 1000
 ): { allowed: boolean; remaining: number } {
   const now = Date.now();
@@ -151,7 +151,7 @@ export async function middleware(req: NextRequest) {
       req.headers.get("x-real-ip") ||
       "127.0.0.1";
 
-    const rateCheck = checkLoginEdgeRateLimit(clientIp, 5, 60 * 1000);
+    const rateCheck = checkLoginEdgeRateLimit(clientIp, 3, 60 * 1000);
     if (!rateCheck.allowed) {
       sendWafAlert(
         "AUTH_BRUTE_FORCE_BLOCKED",
