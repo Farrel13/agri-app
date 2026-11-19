@@ -642,7 +642,9 @@ export default function AdminClient({
                   value={wafSearch}
                   onChange={(e) => setWafSearch(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") fetchWafLogs(wafSeverityFilter, wafSearch);
+                    if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+                      fetchWafLogs(wafSeverityFilter, wafSearch);
+                    }
                   }}
                   className="border border-gray-300 rounded-md px-3 py-1.5 text-xs outline-none focus:border-emerald-500 w-full sm:w-64"
                 />
@@ -849,7 +851,9 @@ export default function AdminClient({
                 value={serverSearch}
                 onChange={(e) => setServerSearch(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") fetchServerLogsAndMetrics(serverSearch);
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+                    fetchServerLogsAndMetrics(serverSearch);
+                  }
                 }}
                 className="border border-gray-300 rounded-md px-3 py-1.5 text-xs outline-none focus:border-emerald-500 w-full max-w-sm"
               />

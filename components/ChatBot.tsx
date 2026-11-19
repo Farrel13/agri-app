@@ -230,6 +230,10 @@ export default function ChatBot() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      // Cegah submit prematur saat sedang komposisi karakter IME (misal keyboard CJK/virtual)
+      if (e.nativeEvent.isComposing || e.keyCode === 229) {
+        return;
+      }
       sendMessage(inputValue);
     }
   };

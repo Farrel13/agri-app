@@ -156,12 +156,10 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
   };
 
   // Pengelompokan cart berdasarkan Hub (Multi-Vendor breakdown)
-  const cartByHub = cart.reduce((acc, item) => {
-    const hubName = item.product.verifiedBy?.name || "Toko Hub Pusat";
-    if (!acc[hubName]) acc[hubName] = [];
-    acc[hubName].push(item);
-    return acc;
-  }, {} as Record<string, CartItem[]>);
+  const cartByHub = Object.groupBy(
+    cart,
+    (item) => item.product.verifiedBy?.name || "Toko Hub Pusat"
+  );
 
   const hubCount = Object.keys(cartByHub).length;
   const deliveryFeeTotal = hubCount * 15000;
@@ -462,7 +460,7 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
                       <p className="text-xs text-gray-500 font-medium mb-2">
                         Toko: {hubName}
                       </p>
-                      {items.map((item) => (
+                      {(items ?? []).map((item) => (
                         <div
                           key={item.product.id}
                           className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0"

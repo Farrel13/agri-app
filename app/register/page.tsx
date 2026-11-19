@@ -129,6 +129,7 @@ export default function RegisterPage() {
               <input
                 type="text"
                 required
+                autoComplete="name"
                 placeholder="cth: Restoran Padang Sari"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -143,6 +144,8 @@ export default function RegisterPage() {
               <input
                 type="text"
                 required
+                autoComplete="username"
+                spellCheck={false}
                 placeholder="cth: padangsari12"
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -159,6 +162,7 @@ export default function RegisterPage() {
               <input
                 type="email"
                 required
+                autoComplete="email"
                 placeholder="nama@domain.com"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -173,6 +177,7 @@ export default function RegisterPage() {
               <input
                 type="tel"
                 required
+                autoComplete="tel"
                 placeholder="081234567890"
                 value={formData.phoneNumber}
                 onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
@@ -261,6 +266,7 @@ export default function RegisterPage() {
             <input
               type="password"
               required
+              autoComplete="new-password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               className="w-full border border-gray-300 rounded-md p-2.5 outline-none focus:border-emerald-500 text-sm"

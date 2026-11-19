@@ -10,3 +10,34 @@ body {
   color: var(--foreground);
   min-height: 100vh;
 }
+
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.notif-trigger {
+  anchor-name: --notif-bell-anchor;
+}
+
+#notification-popover {
+  position-anchor: --notif-bell-anchor;
+  position-area: block-end span-inline-start;
+  position-try-fallbacks: flip-block, flip-inline;
+  margin: 0;
+  margin-top: 0.5rem;
+  inset: auto;
+}
+
+@supports not (position-anchor: --a) {
+  #notification-popover:popover-open {
+    position: fixed;
+    top: 3.75rem;
+    right: 1rem;
+    margin: 0;
+  }
+}
