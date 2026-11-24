@@ -44,6 +44,9 @@ export async function verifyProductAction(formData: FormData) {
       };
     }
 
+    // Etalase Toko Hub berlaku harian (siklus pasar 24 jam)
+    const hubExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
     await prisma.product.update({
       where: { id: productId },
       data: {
@@ -51,6 +54,7 @@ export async function verifyProductAction(formData: FormData) {
         description: description,
         isVerified: true,
         verifiedById: session.user.id, // Toko Hub pedagang yang login
+        imageExpiresAt: hubExpiresAt, // Masa berlaku etalase toko pedagang
       },
     });
 
@@ -116,15 +120,17 @@ export async function updateStoreProductAction(formData: FormData) {
       newExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 jam baru
     }
 
+    const storeExpiresAt = newExpiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000);
+
     await prisma.product.update({
       where: { id: productId },
       data: {
         priceHub,
         stock,
         description,
+        imageExpiresAt: storeExpiresAt,
         ...(newImageUrl && {
           imageUrl: newImageUrl,
-          imageExpiresAt: newExpiresAt,
         }),
       },
     });
@@ -135,5 +141,46 @@ export async function updateStoreProductAction(formData: FormData) {
   } catch (error) {
     console.error("Error update produk toko:", error);
     return { success: false, message: "Gagal memperbarui produk." };
+  }
+}
+
+// Cabut produk dari etalase toko Hub (panen petani tetap aman & utuh)
+export async function removeStoreProductAction(productId: string) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "HUB") {
+      return { success: false, message: "Akses tidak diizinkan." };
+    }
+
+    const rateCheck = await checkServerActionRateLimit("remove_store_product", session.user.id, 15, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
+    }
+
+    const existing = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!existing || existing.verifiedById !== session.user.id) {
+      return { success: false, message: "Produk tidak ditemukan di etalase Anda." };
+    }
+
+    // Cabut dari etalase Hub tanpa menghapus data komoditas asli milik petani
+    await prisma.product.update({
+      where: { id: productId },
+      data: {
+        isVerified: false,
+        verifiedById: null,
+        priceHub: null,
+        imageExpiresAt: null,
+      },
+    });
+
+    revalidatePath("/hub");
+    revalidatePath("/restoran");
+    return { success: true, message: `Bahan "${existing.name}" berhasil diturunkan dari etalase tokomu.` };
+  } catch (error) {
+    console.error("Gagal menurunkan produk:", error);
+    return { success: false, message: "Terjadi kesalahan saat menurunkan produk." };
   }
 }

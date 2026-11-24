@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { verifyProductAction, updateStoreProductAction } from "./actions";
+import { verifyProductAction, updateStoreProductAction, removeStoreProductAction } from "./actions";
 import { compressImage } from "@/lib/compressImage";
 
 interface Product {
@@ -48,8 +48,23 @@ export default function HubClient({
   }, [message]);
 
   const isImageValid = (imageUrl?: string | null, imageExpiresAt?: Date | string | null) => {
-    if (!imageUrl || !imageExpiresAt) return false;
+    if (!imageUrl) return false;
+    if (!imageExpiresAt) return true; // Foto panen asli petani tetap valid
     return new Date(imageExpiresAt).getTime() > Date.now();
+  };
+
+  const handleRemoveStore = async (productId: string) => {
+    if (!confirm("Turunkan komoditas ini dari etalase tokomu? (Data panen asli petani tetap aman & utuh)")) return;
+    setLoading(true);
+    setMessage(null);
+
+    const res = await removeStoreProductAction(productId);
+    setLoading(false);
+    if (res.success) {
+      setMessage({ type: "success", text: res.message });
+    } else {
+      setMessage({ type: "error", text: res.message });
+    }
   };
 
   const handleEditImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -229,7 +244,7 @@ export default function HubClient({
                             />
                           ) : (
                             <div className="w-12 h-12 rounded bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 text-[10px] text-center p-1">
-                              {item.imageUrl ? "Expired" : "No Foto"}
+                              Tanpa Foto
                             </div>
                           )}
                         </td>
@@ -338,8 +353,8 @@ export default function HubClient({
                             alt={item.name}
                             className="w-full h-full object-cover"
                           />
-                          <div className="absolute top-2 left-2 bg-gray-900/70 text-white text-[10px] font-medium px-2 py-0.5 rounded">
-                            Update &lt;24 Jam
+                          <div className="absolute top-2 left-2 bg-emerald-800/80 text-white text-[10px] font-medium px-2 py-0.5 rounded shadow-xs">
+                            Etalase Harian Aktif
                           </div>
                         </>
                       ) : (
@@ -383,16 +398,25 @@ export default function HubClient({
                         </p>
                       </div>
 
-                      <button
-                        onClick={() => {
-                          setEditingProduct(item);
-                          setEditImage(null);
-                          setEditPreview(null);
-                        }}
-                        className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-md text-xs font-medium transition cursor-pointer"
-                      >
-                        Edit Harga, Stok, dan Foto
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingProduct(item);
+                            setEditImage(null);
+                            setEditPreview(null);
+                          }}
+                          className="flex-1 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-md text-xs font-medium transition cursor-pointer"
+                        >
+                          Edit Etalase
+                        </button>
+                        <button
+                          onClick={() => handleRemoveStore(item.id)}
+                          className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-md text-xs font-medium transition cursor-pointer"
+                          title="Turunkan dari etalase tokomu (data panen petani tetap aman)"
+                        >
+                          Turunkan
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

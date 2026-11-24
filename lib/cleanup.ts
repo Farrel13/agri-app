@@ -7,54 +7,57 @@ export interface CleanupResult {
 }
 
 /**
- * Membersihkan data yang sudah kadaluarsa melewati batas 24 jam:
- * 1. Produk panen tanpa pesanan dihapus; produk panen dengan riwayat pesanan diarsipkan & foto dikosongkan.
- * 2. Foto bukti penerimaan barang Order (> 24 jam) dikosongkan dari basis data.
+ * Membersihkan data yang kadaluarsa:
+ * 1. Etalase harian Toko Hub (> 24 jam) di-reset verifikasinya agar katalog restoran selalu segar harian,
+ *    tanpa menghapus data panen asli milik Petani.
+ * 2. Foto bukti penerimaan barang Order (> 24 jam) dikosongkan dari basis data untuk mencegah pembengkakan storage.
  *
  * Catatan Arsitektur:
- * - Tidak menggunakan fs/promises lokal karena Vercel Serverless memiliki ephemeral filesystem.
- * - Menerapkan batching/pagination (parameter batchSize) untuk mencegah runtime timeout.
+ * - Panen petani tidak lagi dihapus harian, melainkan hidup berdasarkan stok hasil panen.
+ * - Menerapkan batching/pagination (parameter batchSize) untuk mencegah runtime timeout di Vercel Serverless.
  */
 export async function cleanupExpiredImages(batchSize = 50): Promise<CleanupResult> {
   try {
     const now = new Date();
 
-    // 1. Ambil produk panen kadaluarsa secara terbatas (batching)
-    const expiredProducts = await prisma.product.findMany({
+    // 1. Ambil produk etalase Toko Hub yang sudah kadaluarsa harian (> 24 jam)
+    const expiredHubProducts = await prisma.product.findMany({
       where: {
+        isVerified: true,
         imageExpiresAt: { lte: now },
       },
-      include: {
-        orderItems: { select: { id: true }, take: 1 },
-      },
+      select: { id: true },
       take: batchSize,
     });
 
-    const idsToDelete: string[] = [];
-    const idsToArchive: string[] = [];
-
-    for (const item of expiredProducts) {
-      if (!item.orderItems || item.orderItems.length === 0) {
-        idsToDelete.push(item.id);
-      } else {
-        idsToArchive.push(item.id);
-      }
-    }
-
-    if (idsToDelete.length > 0) {
-      await prisma.product.deleteMany({
-        where: { id: { in: idsToDelete } },
-      });
-    }
-
-    if (idsToArchive.length > 0) {
+    let resetHubCount = 0;
+    if (expiredHubProducts.length > 0) {
+      const hubProductIds = expiredHubProducts.map((p) => p.id);
+      // Reset etalase Toko Hub: produk turun dari etalase restoran, tetapi data panen petani tetap aman & utuh
       await prisma.product.updateMany({
-        where: { id: { in: idsToArchive } },
-        data: { imageUrl: null, imageExpiresAt: null, stock: 0 },
+        where: { id: { in: hubProductIds } },
+        data: {
+          isVerified: false,
+          verifiedById: null,
+          priceHub: null,
+          imageExpiresAt: null,
+        },
       });
+      resetHubCount = hubProductIds.length;
     }
 
-    // 2. Bersihkan bukti penerimaan pesanan kadaluarsa (> 24 jam)
+    // 2. Normalisasi data panen petani terdahulu (jika ada sisa imageExpiresAt lama, bersihkan agar tidak terhapus)
+    await prisma.product.updateMany({
+      where: {
+        isVerified: false,
+        imageExpiresAt: { not: null },
+      },
+      data: {
+        imageExpiresAt: null,
+      },
+    });
+
+    // 3. Bersihkan bukti penerimaan pesanan kadaluarsa (> 24 jam)
     const expiredOrders = await prisma.order.findMany({
       where: {
         receivedImageUrl: { not: null },
@@ -72,12 +75,12 @@ export async function cleanupExpiredImages(batchSize = 50): Promise<CleanupResul
     }
 
     return {
-      deletedProducts: idsToDelete.length,
-      archivedProducts: idsToArchive.length,
+      deletedProducts: 0,
+      archivedProducts: resetHubCount,
       cleanedOrders: expiredOrders.length,
     };
   } catch (error) {
-    console.error("Gagal menjalankan pembersihan data expired (>24 jam):", error);
+    console.error("Gagal menjalankan pembersihan data expired:", error);
     throw error;
   }
 }

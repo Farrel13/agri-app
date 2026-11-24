@@ -20,7 +20,10 @@ export default async function DashboardHub() {
   // Ambil antrean panen masuk dan etalase toko secara paralel (Promise.all) untuk memangkas latensi database
   const [unverifiedProducts, myStoreProducts] = await Promise.all([
     prisma.product.findMany({
-      where: { isVerified: false },
+      where: {
+        isVerified: false,
+        stock: { gt: 0 },
+      },
       include: {
         user: {
           select: { id: true, name: true },

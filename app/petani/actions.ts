@@ -38,9 +38,7 @@ export async function tambahPanen(data: TambahPanenInput) {
       return { success: false, message: "Mohon isi semua data panen dengan benar." };
     }
 
-    // Setiap produk panen memiliki batas kadaluarsa 24 jam
-    const imageExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
+    // Masa aktif panen petani bertahan berdasarkan ketersediaan stok hasil panen (tidak otomatis dihapus per 24 jam)
     await prisma.product.create({
       data: {
         name: cleanName,
@@ -50,7 +48,7 @@ export async function tambahPanen(data: TambahPanenInput) {
         userId: session.user.id,
         isVerified: false,
         imageUrl: imageUrl || null,
-        imageExpiresAt: imageExpiresAt,
+        imageExpiresAt: null, // Panen petani tidak dihapus harian
       },
     });
 
@@ -164,7 +162,6 @@ export async function updateProductFarmerAction(formData: FormData) {
           ? "image/webp"
           : "image/jpeg";
       newImageUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
-      newExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     }
 
     await prisma.product.update({
@@ -176,7 +173,6 @@ export async function updateProductFarmerAction(formData: FormData) {
         priceFarmer: Math.floor(priceFarmer),
         ...(newImageUrl && {
           imageUrl: newImageUrl,
-          imageExpiresAt: newExpiresAt,
         }),
       },
     });
@@ -237,5 +233,46 @@ export async function deleteProductFarmerAction(productId: string) {
   } catch (error) {
     console.error("Gagal menghapus panen:", error);
     return { success: false, message: "Terjadi kesalahan saat menghapus data." };
+  }
+}
+
+// 5. Tandai Panen Selesai / Tutup Stok Panen secara manual oleh Petani
+export async function markHarvestFinishedAction(productId: string) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "PETANI") {
+      return { success: false, message: "Akses tidak diizinkan." };
+    }
+
+    const rateCheck = await checkServerActionRateLimit("finish_harvest", session.user.id, 15, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return { success: false, message: rateCheck.message };
+    }
+
+    const existing = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!existing || existing.userId !== session.user.id) {
+      return { success: false, message: "Produk tidak ditemukan atau bukan milik Anda." };
+    }
+
+    // Set stok menjadi 0 agar berstatus panen habis/selesai, serta lepaskan verifikasi hub
+    await prisma.product.update({
+      where: { id: productId },
+      data: {
+        stock: 0,
+        isVerified: false,
+        imageExpiresAt: null,
+      },
+    });
+
+    revalidatePath("/petani");
+    revalidatePath("/hub");
+    revalidatePath("/restoran");
+    return { success: true, message: `Panen "${existing.name}" berhasil ditandai selesai (stok ditutup).` };
+  } catch (error) {
+    console.error("Gagal menandai panen selesai:", error);
+    return { success: false, message: "Terjadi kesalahan saat menutup stok panen." };
   }
 }

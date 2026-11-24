@@ -5,6 +5,7 @@ import {
   addProductAction,
   updateProductFarmerAction,
   deleteProductFarmerAction,
+  markHarvestFinishedAction,
 } from "./actions";
 import { compressImage } from "@/lib/compressImage";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -52,6 +53,7 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
   const [editImage, setEditImage] = useState<File | null>(null);
   const [editPreview, setEditPreview] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [finishTarget, setFinishTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (message) {
@@ -165,9 +167,23 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
     }
   };
 
+  const handleFinish = async (productId: string) => {
+    setLoading(true);
+    setMessage(null);
+
+    const res = await markHarvestFinishedAction(productId);
+    setLoading(false);
+    setFinishTarget(null);
+
+    if (res.success) {
+      setMessage({ type: "success", text: res.message });
+    } else {
+      setMessage({ type: "error", text: res.message });
+    }
+  };
+
   const isImageValid = (item: Product) => {
-    if (!item.imageUrl || !item.imageExpiresAt) return false;
-    return new Date(item.imageExpiresAt).getTime() > Date.now();
+    return Boolean(item.imageUrl);
   };
 
   return (
@@ -308,7 +324,7 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                Foto Bukti Segar (Berlaku 24 Jam)
+                Foto Hasil Panen (Bukti Kondisi Fisik)
               </label>
               <input
                 type="file"
@@ -374,19 +390,32 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 text-xs">
-                            <span>{item.imageUrl ? "Foto Expired (>24 Jam)" : "Tanpa Foto"}</span>
+                            <span>Tanpa Foto</span>
                           </div>
                         )}
 
-                        {/* Badge Verifikasi */}
+                        {/* Badge Verifikasi Hub */}
                         <div className="absolute top-3 left-3">
                           {item.isVerified ? (
-                            <span className="bg-emerald-600 text-white text-[10px] font-medium px-2 py-1 rounded">
+                            <span className="bg-emerald-600 text-white text-[10px] font-medium px-2 py-1 rounded shadow-xs">
                               Diverifikasi Hub
                             </span>
                           ) : (
-                            <span className="bg-gray-500 text-white text-[10px] font-medium px-2 py-1 rounded">
+                            <span className="bg-gray-700/85 text-white text-[10px] font-medium px-2 py-1 rounded shadow-xs">
                               Menunggu Verifikasi
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Badge Status Stok Hasil Panen */}
+                        <div className="absolute top-3 right-3">
+                          {item.stock > 0 ? (
+                            <span className="bg-emerald-700/90 text-white text-[10px] font-semibold px-2 py-1 rounded shadow-xs">
+                              Stok Tersedia
+                            </span>
+                          ) : (
+                            <span className="bg-rose-700/90 text-white text-[10px] font-semibold px-2 py-1 rounded shadow-xs">
+                              Panen Habis
                             </span>
                           )}
                         </div>
@@ -403,7 +432,10 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
 
                         <div className="text-xs text-gray-600 space-y-1">
                           <p>
-                            Sisa Stok: <strong className="text-gray-800">{item.stock} {item.unit}</strong>
+                            Sisa Stok:{" "}
+                            <strong className={item.stock > 0 ? "text-emerald-700 font-semibold" : "text-rose-600 font-semibold"}>
+                              {item.stock} {item.unit} {item.stock === 0 ? "(Habis)" : ""}
+                            </strong>
                           </p>
                           <p>
                             Terjual:{" "}
@@ -421,8 +453,8 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
                       </div>
                     </div>
 
-                    {/* Action Buttons: Edit & Hapus */}
-                    <div className="p-4 pt-0 border-t border-gray-100 mt-2 flex gap-2">
+                    {/* Action Buttons: Edit, Tandai Habis, & Hapus */}
+                    <div className="p-4 pt-0 border-t border-gray-100 mt-2 flex items-center gap-2">
                       <button
                         onClick={() => {
                           setEditingProduct(item);
@@ -433,6 +465,15 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
                       >
                         Edit Panen
                       </button>
+                      {item.stock > 0 && (
+                        <button
+                          onClick={() => setFinishTarget({ id: item.id, name: item.name })}
+                          className="py-1.5 px-2.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition cursor-pointer"
+                          title="Tandai panen selesai / stok habis"
+                        >
+                          Tandai Habis
+                        </button>
+                      )}
                       <button
                         onClick={() => setDeleteTarget({ id: item.id, name: item.name })}
                         className="py-1.5 px-3 text-xs font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 rounded-md transition cursor-pointer"
@@ -461,6 +502,20 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
           if (deleteTarget) handleDelete(deleteTarget.id);
         }}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* Dialog Konfirmasi Tandai Panen Selesai / Habis */}
+      <ConfirmDialog
+        isOpen={!!finishTarget}
+        title="Tandai Panen Selesai?"
+        description={`Stok komoditas "${finishTarget?.name}" akan diset menjadi 0 dan ditandai habis. Produk ini tidak lagi ditawarkan ke Hub, tetapi riwayat penjualan Anda tetap tercatat.`}
+        confirmText="Tutup Stok Panen"
+        cancelText="Batal"
+        isLoading={loading}
+        onConfirm={() => {
+          if (finishTarget) handleFinish(finishTarget.id);
+        }}
+        onCancel={() => setFinishTarget(null)}
       />
 
       {/* Modal Edit Panen */}
@@ -532,7 +587,7 @@ export default function PetaniClient({ products, stats }: PetaniClientProps) {
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Perbarui Foto (Opsional, reset jam expired ke 24 jam)
+                  Perbarui Foto Panen (Opsional)
                 </label>
                 <input
                   type="file"
