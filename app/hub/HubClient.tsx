@@ -122,95 +122,124 @@ export default function HubClient({
 
   const handleVerify = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage(null);
+    try {
+      setLoading(true);
+      setMessage(null);
 
-    const formData = new FormData(e.currentTarget);
-    const res = await verifyProductAction(formData);
+      const formData = new FormData(e.currentTarget);
+      const res = await verifyProductAction(formData);
 
-    setLoading(false);
-    if (res.success) {
-      setMessage({ type: "success", text: res.message });
-      (e.target as HTMLFormElement).reset();
-    } else {
-      setMessage({ type: "error", text: res.message });
+      if (res.success) {
+        setMessage({ type: "success", text: res.message });
+        (e.target as HTMLFormElement).reset();
+      } else {
+        setMessage({ type: "error", text: res.message });
+      }
+    } catch (err) {
+      console.error("Gagal memproses pembelian panen:", err);
+      setMessage({ type: "error", text: "Terjadi kesalahan saat memproses pembelian panen. Silakan coba lagi." });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdateStore = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage(null);
+    try {
+      setLoading(true);
+      setMessage(null);
 
-    const formData = new FormData(e.currentTarget);
-    if (editImage) {
-      formData.set("image", editImage);
-    }
+      const formData = new FormData(e.currentTarget);
+      if (editImage) {
+        formData.set("image", editImage);
+      }
 
-    const res = await updateStoreProductAction(formData);
+      const res = await updateStoreProductAction(formData);
 
-    setLoading(false);
-    if (res.success) {
-      setMessage({ type: "success", text: res.message });
-      setEditingProduct(null);
-      setEditImage(null);
-      setEditPreview(null);
-    } else {
-      setMessage({ type: "error", text: res.message });
+      if (res.success) {
+        setMessage({ type: "success", text: res.message });
+        setEditingProduct(null);
+        setEditImage(null);
+        setEditPreview(null);
+      } else {
+        setMessage({ type: "error", text: res.message });
+      }
+    } catch (err) {
+      console.error("Gagal memperbarui etalase:", err);
+      setMessage({ type: "error", text: "Terjadi kesalahan saat memperbarui etalase toko." });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleRemoveStore = async (productId: string) => {
     if (!confirm("Turunkan komoditas ini dari etalase tokomu? (Data panen asli petani tetap aman & utuh)")) return;
-    setLoading(true);
-    setMessage(null);
+    try {
+      setLoading(true);
+      setMessage(null);
 
-    const res = await removeStoreProductAction(productId);
-    setLoading(false);
-    if (res.success) {
-      setMessage({ type: "success", text: res.message });
-    } else {
-      setMessage({ type: "error", text: res.message });
+      const res = await removeStoreProductAction(productId);
+      if (res.success) {
+        setMessage({ type: "success", text: res.message });
+      } else {
+        setMessage({ type: "error", text: res.message });
+      }
+    } catch (err) {
+      console.error("Gagal menurunkan produk:", err);
+      setMessage({ type: "error", text: "Terjadi gangguan saat menurunkan produk dari etalase." });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage(null);
+    try {
+      setLoading(true);
+      setMessage(null);
 
-    const res = await addExpenseAction({
-      title: expenseTitle,
-      amount: Number(expenseAmount),
-      category: expenseCategory,
-      date: expenseDate,
-      notes: expenseNotes,
-    });
+      const res = await addExpenseAction({
+        title: expenseTitle,
+        amount: Number(expenseAmount),
+        category: expenseCategory,
+        date: expenseDate,
+        notes: expenseNotes,
+      });
 
-    setLoading(false);
-    if (res.success) {
-      setMessage({ type: "success", text: res.message });
-      setIsAddingExpense(false);
-      setExpenseTitle("");
-      setExpenseAmount("");
-      setExpenseNotes("");
-    } else {
-      setMessage({ type: "error", text: res.message });
+      if (res.success) {
+        setMessage({ type: "success", text: res.message });
+        setIsAddingExpense(false);
+        setExpenseTitle("");
+        setExpenseAmount("");
+        setExpenseNotes("");
+      } else {
+        setMessage({ type: "error", text: res.message });
+      }
+    } catch (err) {
+      console.error("Gagal mencatat pengeluaran:", err);
+      setMessage({ type: "error", text: "Terjadi gangguan saat mencatat biaya operasional toko." });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteExpense = async (id: string) => {
-    setLoading(true);
-    setMessage(null);
+    try {
+      setLoading(true);
+      setMessage(null);
 
-    const res = await deleteExpenseAction(id);
-    setLoading(false);
-    setDeleteExpenseTarget(null);
-
-    if (res.success) {
-      setMessage({ type: "success", text: res.message });
-    } else {
-      setMessage({ type: "error", text: res.message });
+      const res = await deleteExpenseAction(id);
+      if (res.success) {
+        setMessage({ type: "success", text: res.message });
+      } else {
+        setMessage({ type: "error", text: res.message });
+      }
+    } catch (err) {
+      console.error("Gagal menghapus pengeluaran:", err);
+      setMessage({ type: "error", text: "Gagal menghapus pengeluaran toko." });
+    } finally {
+      setLoading(false);
+      setDeleteExpenseTarget(null);
     }
   };
 
@@ -364,9 +393,9 @@ export default function HubClient({
                     <th className="py-2.5 px-3">Foto</th>
                     <th className="py-2.5 px-3">Komoditas</th>
                     <th className="py-2.5 px-3">Asal Petani</th>
-                    <th className="py-2.5 px-3">Stok Panen</th>
-                    <th className="py-2.5 px-3">Harga Beli Petani</th>
-                    <th className="py-2.5 px-3">Pengaturan Jual di Toko</th>
+                    <th className="py-2.5 px-3">Sisa Stok Panen</th>
+                    <th className="py-2.5 px-3">Harga Modal Petani</th>
+                    <th className="py-2.5 px-3">Beli & Pengaturan Toko Hub</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -390,40 +419,80 @@ export default function HubClient({
                         <td className="py-2.5 px-3 font-medium text-gray-900">{item.name}</td>
                         <td className="py-2.5 px-3 text-gray-700">{item.user?.name || "Petani"}</td>
                         <td className="py-2.5 px-3">
-                          {item.stock} {item.unit}
+                          <span className="font-semibold text-emerald-700">
+                            {item.stock} {item.unit}
+                          </span>
                         </td>
-                        <td className="py-2.5 px-3 text-gray-500">
-                          Rp {item.priceFarmer.toLocaleString("id-ID")}
+                        <td className="py-2.5 px-3 text-gray-600 font-medium">
+                          Rp {item.priceFarmer.toLocaleString("id-ID")}/{item.unit}
                         </td>
                         <td className="py-2.5 px-3">
-                          <form onSubmit={handleVerify} className="flex gap-2 items-center flex-wrap">
+                          <form onSubmit={handleVerify} className="flex gap-2 items-end flex-wrap">
                             <input type="hidden" name="productId" value={item.id} />
-                            <div className="relative">
-                              <span className="absolute inset-y-0 left-0 pl-2 flex items-center text-xs text-gray-400">
-                                Rp
+
+                            {/* Kuantitas yang dibeli pedagang */}
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] font-medium text-gray-500">
+                                Beli ({item.unit})
+                              </span>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  name="quantity"
+                                  required
+                                  min="1"
+                                  max={item.stock}
+                                  defaultValue={item.stock}
+                                  title={`Tentukan jumlah yang ingin Anda beli (1 - ${item.stock} ${item.unit})`}
+                                  className="w-24 pl-2 pr-7 py-1.5 border border-gray-300 rounded text-xs focus:border-emerald-500 outline-none font-semibold text-gray-900"
+                                />
+                                <span className="absolute inset-y-0 right-0 pr-1.5 flex items-center text-[10px] text-gray-400 pointer-events-none">
+                                  {item.unit}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Harga Jual Toko */}
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] font-medium text-gray-500">
+                                Harga Jual Toko
+                              </span>
+                              <div className="relative">
+                                <span className="absolute inset-y-0 left-0 pl-2 flex items-center text-xs text-gray-400">
+                                  Rp
+                                </span>
+                                <input
+                                  type="number"
+                                  name="priceHub"
+                                  placeholder={`Min ${item.priceFarmer.toLocaleString("id-ID")}`}
+                                  required
+                                  min={item.priceFarmer}
+                                  title={`Harga jual minimal modal petani (Rp ${item.priceFarmer.toLocaleString("id-ID")})`}
+                                  className="w-28 pl-7 pr-2 py-1.5 border border-gray-300 rounded text-xs focus:border-emerald-500 outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Deskripsi Mutu Toko */}
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] font-medium text-gray-500">
+                                Deskripsi Mutu (Opsional)
                               </span>
                               <input
-                                type="number"
-                                name="priceHub"
-                                placeholder={`Min ${item.priceFarmer.toLocaleString("id-ID")}`}
-                                required
-                                min={item.priceFarmer}
-                                title={`Harga jual minimal modal petani (Rp ${item.priceFarmer.toLocaleString("id-ID")})`}
-                                className="w-28 pl-7 pr-2 py-1.5 border border-gray-300 rounded text-xs focus:border-emerald-500 outline-none"
+                                type="text"
+                                name="description"
+                                placeholder="cth: Kualitas Super..."
+                                className="w-36 px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-emerald-500 outline-none"
                               />
                             </div>
-                            <input
-                              type="text"
-                              name="description"
-                              placeholder="Deskripsi mutu (opsional)..."
-                              className="w-40 px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-emerald-500 outline-none"
-                            />
+
                             <button
                               type="submit"
                               disabled={loading}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1.5 rounded transition cursor-pointer text-xs disabled:opacity-50"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3.5 py-1.5 rounded transition cursor-pointer text-xs disabled:opacity-50 shrink-0 mb-0.5"
+                              title="Beli jumlah ini dan pasang di etalase tokomu"
                             >
-                              Verifikasi
+                              {loading ? "Memproses..." : "Beli & Pasang"}
                             </button>
                           </form>
                         </td>

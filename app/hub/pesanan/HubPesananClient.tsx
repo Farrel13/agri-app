@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   updateOrderStatusAction,
@@ -73,11 +73,56 @@ export default function HubPesananClient({
   const [msg, setMsg] = useState<{ text: string; success: boolean } | null>(null);
 
   useEffect(() => {
+    setOrders(initialOrders);
+  }, [initialOrders]);
+
+  useEffect(() => {
     if (msg) {
       const timer = setTimeout(() => setMsg(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [msg]);
+
+  // Ringkasan Finansial Reaktif secara Real-Time berdasarkan state pesanan aktif
+  const stats = useMemo(() => {
+    let totalRevenue = 0;
+    let totalFarmerCost = 0;
+    let completedOrdersCount = 0;
+
+    for (const ord of orders) {
+      if (ord.status === "SELESAI") {
+        completedOrdersCount++;
+      }
+
+      // Hitung omzet jika sudah lunas atau dalam proses pemenuhan hub / dikirim / selesai
+      const isCounted =
+        ord.status !== "DIBATALKAN" &&
+        (ord.payment?.status === "LUNAS" || ["DIPROSES_HUB", "DIKIRIM", "SELESAI"].includes(ord.status));
+
+      if (isCounted) {
+        let orderCost = 0;
+        let orderRevenue = 0;
+        for (const it of ord.items) {
+          orderRevenue += it.subtotal;
+          orderCost += it.quantity * (it.product?.priceFarmer || 0);
+        }
+        totalRevenue += orderRevenue;
+        totalFarmerCost += orderCost;
+      }
+    }
+
+    const netProfit = totalRevenue - totalFarmerCost;
+    const profitMarginPercent = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+    return {
+      totalOrders: orders.length,
+      completedOrdersCount,
+      totalRevenue,
+      totalFarmerCost,
+      netProfit,
+      profitMarginPercent: Math.round(profitMarginPercent * 10) / 10,
+    };
+  }, [orders]);
 
   // State Modal Pengiriman & Kurir
   const [dispatchingOrder, setDispatchingOrder] = useState<OrderData | null>(null);
@@ -91,38 +136,50 @@ export default function HubPesananClient({
   const [printOrder, setPrintOrder] = useState<OrderData | null>(null);
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
-    setLoadingId(orderId);
-    setMsg(null);
-    const res = await updateOrderStatusAction(orderId, newStatus);
-    setLoadingId(null);
+    try {
+      setLoadingId(orderId);
+      setMsg(null);
+      const res = await updateOrderStatusAction(orderId, newStatus);
 
-    if (res.success) {
-      setMsg({ text: res.message, success: true });
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
-      );
-    } else {
-      setMsg({ text: res.message, success: false });
+      if (res.success) {
+        setMsg({ text: res.message, success: true });
+        setOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+        );
+      } else {
+        setMsg({ text: res.message, success: false });
+      }
+    } catch (err) {
+      console.error("Gagal mengubah status:", err);
+      setMsg({ text: "Terjadi gangguan saat mengubah status pesanan.", success: false });
+    } finally {
+      setLoadingId(null);
     }
   };
 
   const handleVerifyPayment = async (orderId: string) => {
-    setLoadingId(orderId);
-    setMsg(null);
-    const res = await verifyOrderPaymentAction(orderId);
-    setLoadingId(null);
+    try {
+      setLoadingId(orderId);
+      setMsg(null);
+      const res = await verifyOrderPaymentAction(orderId);
 
-    if (res.success) {
-      setMsg({ text: res.message, success: true });
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === orderId
-            ? { ...o, status: "DIPROSES_HUB", payment: { ...o.payment!, status: "LUNAS" } }
-            : o
-        )
-      );
-    } else {
-      setMsg({ text: res.message, success: false });
+      if (res.success) {
+        setMsg({ text: res.message, success: true });
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === orderId
+              ? { ...o, status: "DIPROSES_HUB", payment: { ...o.payment!, status: "LUNAS" } }
+              : o
+          )
+        );
+      } else {
+        setMsg({ text: res.message, success: false });
+      }
+    } catch (err) {
+      console.error("Gagal verifikasi pembayaran:", err);
+      setMsg({ text: "Terjadi gangguan saat memverifikasi pembayaran.", success: false });
+    } finally {
+      setLoadingId(null);
     }
   };
 
@@ -212,9 +269,9 @@ export default function HubPesananClient({
             Omzet Penjualan
           </span>
           <p className="text-xl font-bold text-gray-900 mt-1">
-            Rp {financialStats.totalRevenue.toLocaleString("id-ID")}
+            Rp {stats.totalRevenue.toLocaleString("id-ID")}
           </p>
-          <span className="text-xs text-gray-400 mt-0.5 block">Dari pesanan terverifikasi</span>
+          <span className="text-xs text-gray-400 mt-0.5 block">Dari pesanan aktif & terverifikasi</span>
         </div>
 
         <div className="bg-white p-4 rounded-md border border-gray-200">
@@ -222,7 +279,7 @@ export default function HubPesananClient({
             Modal Beli Petani
           </span>
           <p className="text-xl font-bold text-gray-900 mt-1">
-            Rp {financialStats.totalFarmerCost.toLocaleString("id-ID")}
+            Rp {stats.totalFarmerCost.toLocaleString("id-ID")}
           </p>
           <span className="text-xs text-gray-400 mt-0.5 block">Kewajiban bayar ke petani</span>
         </div>
@@ -232,10 +289,10 @@ export default function HubPesananClient({
             Laba Bersih Hub
           </span>
           <p className="text-xl font-bold text-emerald-600 mt-1">
-            Rp {financialStats.netProfit.toLocaleString("id-ID")}
+            Rp {stats.netProfit.toLocaleString("id-ID")}
           </p>
           <span className="text-xs text-gray-500 mt-0.5 block">
-            Margin: {financialStats.profitMarginPercent}%
+            Margin: {stats.profitMarginPercent}%
           </span>
         </div>
 
@@ -243,9 +300,9 @@ export default function HubPesananClient({
           <span className="text-xs font-medium text-gray-500 block">
             Total Transaksi
           </span>
-          <p className="text-xl font-bold text-gray-900 mt-1">{financialStats.totalOrders} Pesanan</p>
+          <p className="text-xl font-bold text-gray-900 mt-1">{stats.totalOrders} Pesanan</p>
           <span className="text-xs text-gray-400 mt-0.5 block">
-            {financialStats.completedOrdersCount} Selesai Diterima
+            {stats.completedOrdersCount} Selesai Diterima
           </span>
         </div>
       </div>

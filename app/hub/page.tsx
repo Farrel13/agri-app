@@ -98,7 +98,9 @@ export default async function DashboardHub() {
       completedOrdersCount++;
     }
 
-    const isPaid = ord.status !== "DIBATALKAN" && ord.payment?.status === "LUNAS";
+    const isPaid =
+      ord.status !== "DIBATALKAN" &&
+      (ord.payment?.status === "LUNAS" || ["DIPROSES_HUB", "DIKIRIM", "SELESAI"].includes(ord.status));
 
     for (const it of ord.items) {
       const revenue = it.subtotal;

@@ -56,7 +56,11 @@ export default async function HubPesananPage() {
 
     const orderProfit = orderRevenue - orderCost;
 
-    if (ord.status !== "DIBATALKAN" && ord.payment?.status === "LUNAS") {
+    const isCounted =
+      ord.status !== "DIBATALKAN" &&
+      (ord.payment?.status === "LUNAS" || ["DIPROSES_HUB", "DIKIRIM", "SELESAI"].includes(ord.status));
+
+    if (isCounted) {
       totalRevenue += orderRevenue;
       totalFarmerCost += orderCost;
     }
