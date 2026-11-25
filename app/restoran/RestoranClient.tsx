@@ -105,9 +105,8 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
     return matchName || matchStore || matchDesc || matchFarmer;
   });
 
-  const isImageValid = (imageUrl?: string | null, imageExpiresAt?: Date | string | null) => {
-    if (!imageUrl || !imageExpiresAt) return false;
-    return new Date(imageExpiresAt).getTime() > Date.now();
+  const isImageValid = (imageUrl?: string | null) => {
+    return Boolean(imageUrl);
   };
 
   const addToCart = (product: Product) => {
@@ -334,7 +333,7 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
             ) : (
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredProducts.map((p) => {
-                  const imgValid = isImageValid(p.imageUrl, p.imageExpiresAt);
+                  const imgValid = isImageValid(p.imageUrl);
                   return (
                     <div
                       key={p.id}

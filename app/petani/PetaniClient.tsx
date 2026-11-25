@@ -72,7 +72,7 @@ interface PetaniClientProps {
 export default function PetaniClient({
   products,
   stats,
-  expenses: initialExpenses,
+  expenses,
   incomeEvents,
 }: PetaniClientProps) {
   const [activeTab, setActiveTab] = useState<"PANEN" | "KEUANGAN">("PANEN");
@@ -98,7 +98,6 @@ export default function PetaniClient({
   const [finishTarget, setFinishTarget] = useState<{ id: string; name: string } | null>(null);
 
   // Catatan Pengeluaran (Opsi B)
-  const [expenses, setExpenses] = useState<ExpenseItem[]>(initialExpenses);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [expenseTitle, setExpenseTitle] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
@@ -106,10 +105,6 @@ export default function PetaniClient({
   const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [expenseNotes, setExpenseNotes] = useState("");
   const [deleteExpenseTarget, setDeleteExpenseTarget] = useState<ExpenseItem | null>(null);
-
-  useEffect(() => {
-    setExpenses(initialExpenses);
-  }, [initialExpenses]);
 
   useEffect(() => {
     if (message) {
@@ -256,9 +251,8 @@ export default function PetaniClient({
     });
 
     setLoading(false);
-    if (res.success && res.expense) {
+    if (res.success) {
       setMessage({ type: "success", text: res.message });
-      setExpenses((prev) => [res.expense as ExpenseItem, ...prev]);
       setIsAddingExpense(false);
       setExpenseTitle("");
       setExpenseAmount("");
@@ -278,7 +272,6 @@ export default function PetaniClient({
 
     if (res.success) {
       setMessage({ type: "success", text: res.message });
-      setExpenses((prev) => prev.filter((item) => item.id !== id));
     } else {
       setMessage({ type: "error", text: res.message });
     }
@@ -352,7 +345,7 @@ export default function PetaniClient({
                 : "text-gray-600 hover:text-gray-900"
             }`}
           >
-            🌱 Koleksi Panen ({products.length})
+             Koleksi Panen ({products.length})
           </button>
           <button
             type="button"
@@ -363,7 +356,7 @@ export default function PetaniClient({
                 : "text-gray-600 hover:text-gray-900"
             }`}
           >
-            💰 Laporan Keuangan
+             Laporan Keuangan
           </button>
         </div>
       </div>

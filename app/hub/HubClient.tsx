@@ -69,7 +69,7 @@ export default function HubClient({
   unverifiedProducts,
   myStoreProducts,
   salesEvents,
-  expenses: initialExpenses,
+  expenses,
   hubUser,
 }: HubClientProps) {
   const [activeTab, setActiveTab] = useState<"VERIFIKASI" | "ETALASE" | "KEUANGAN">("VERIFIKASI");
@@ -83,7 +83,6 @@ export default function HubClient({
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Biaya Operasional Mandiri Hub (Opsi B)
-  const [expenses, setExpenses] = useState<HubExpenseItem[]>(initialExpenses);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [expenseTitle, setExpenseTitle] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
@@ -93,20 +92,14 @@ export default function HubClient({
   const [deleteExpenseTarget, setDeleteExpenseTarget] = useState<HubExpenseItem | null>(null);
 
   useEffect(() => {
-    setExpenses(initialExpenses);
-  }, [initialExpenses]);
-
-  useEffect(() => {
     if (message) {
       const timer = setTimeout(() => setMessage(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [message]);
 
-  const isImageValid = (imageUrl?: string | null, imageExpiresAt?: Date | string | null) => {
-    if (!imageUrl) return false;
-    if (!imageExpiresAt) return true; // Foto panen asli petani tetap valid
-    return new Date(imageExpiresAt).getTime() > Date.now();
+  const isImageValid = (imageUrl?: string | null) => {
+    return Boolean(imageUrl);
   };
 
   const handleEditImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -195,9 +188,8 @@ export default function HubClient({
     });
 
     setLoading(false);
-    if (res.success && res.expense) {
+    if (res.success) {
       setMessage({ type: "success", text: res.message });
-      setExpenses((prev) => [res.expense as HubExpenseItem, ...prev]);
       setIsAddingExpense(false);
       setExpenseTitle("");
       setExpenseAmount("");
@@ -217,7 +209,6 @@ export default function HubClient({
 
     if (res.success) {
       setMessage({ type: "success", text: res.message });
-      setExpenses((prev) => prev.filter((item) => item.id !== id));
     } else {
       setMessage({ type: "error", text: res.message });
     }
@@ -380,7 +371,7 @@ export default function HubClient({
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {unverifiedProducts.map((item) => {
-                    const valid = isImageValid(item.imageUrl, item.imageExpiresAt);
+                    const valid = isImageValid(item.imageUrl);
                     return (
                       <tr key={item.id} className="hover:bg-gray-50">
                         <td className="py-2.5 px-3">
@@ -484,7 +475,7 @@ export default function HubClient({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {filteredMyStore.map((item) => {
-                const valid = isImageValid(item.imageUrl, item.imageExpiresAt);
+                const valid = isImageValid(item.imageUrl);
                 return (
                   <div
                     key={item.id}
@@ -504,7 +495,7 @@ export default function HubClient({
                         </>
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 text-xs bg-gray-50">
-                          <span>Foto kadaluarsa</span>
+                          <span>Tanpa Foto</span>
                         </div>
                       )}
                     </div>

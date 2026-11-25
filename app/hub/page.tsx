@@ -89,7 +89,7 @@ export default async function DashboardHub() {
     revenue: number;
     farmerCost: number;
     netMargin: number;
-    date: Date;
+    date: Date | string;
     status: string;
   }> = [];
 
@@ -123,7 +123,7 @@ export default async function DashboardHub() {
         revenue,
         farmerCost,
         netMargin,
-        date: ord.createdAt,
+        date: ord.createdAt.toISOString(),
         status: ord.status,
       });
     }
@@ -152,7 +152,7 @@ export default async function DashboardHub() {
     category: e.category,
     amount: e.amount,
     notes: e.notes,
-    date: e.date,
+    date: e.date.toISOString(),
   }));
 
   return (

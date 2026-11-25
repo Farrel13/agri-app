@@ -161,7 +161,12 @@ export default async function DashboardPetani() {
     category: e.category,
     amount: e.amount,
     notes: e.notes,
-    date: e.date,
+    date: e.date.toISOString(),
+  }));
+
+  const serializedIncomeEvents = incomeEvents.map((it) => ({
+    ...it,
+    date: it.date.toISOString(),
   }));
 
   return (
@@ -169,7 +174,7 @@ export default async function DashboardPetani() {
       products={products}
       stats={stats}
       expenses={expenses}
-      incomeEvents={incomeEvents}
+      incomeEvents={serializedIncomeEvents}
     />
   );
 }
