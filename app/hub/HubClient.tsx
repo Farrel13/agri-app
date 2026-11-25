@@ -1,8 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { verifyProductAction, updateStoreProductAction, removeStoreProductAction } from "./actions";
+import { addExpenseAction, deleteExpenseAction } from "@/app/actions/expense";
 import { compressImage } from "@/lib/compressImage";
+import ConfirmDialog from "@/components/ConfirmDialog";
+
+export interface HubSalesItem {
+  id: string;
+  orderNumber: string;
+  buyerName: string;
+  productName: string;
+  quantity: number;
+  unit: string;
+  pricePerUnit: number;
+  farmerCostPerUnit: number;
+  revenue: number;
+  farmerCost: number;
+  netMargin: number;
+  date: Date | string;
+  status: string;
+}
+
+export interface HubExpenseItem {
+  id: string;
+  title: string;
+  category: string;
+  amount: number;
+  notes: string | null;
+  date: Date | string;
+}
 
 interface Product {
   id: string;
@@ -23,15 +50,30 @@ interface Product {
 interface HubClientProps {
   unverifiedProducts: Product[];
   myStoreProducts: Product[];
+  financialStats: {
+    totalOrders: number;
+    completedOrdersCount: number;
+    totalRevenue: number;
+    totalFarmerCost: number;
+    totalManualExpense: number;
+    totalExpense: number;
+    netProfit: number;
+    profitMarginPercent: number;
+  };
+  salesEvents: HubSalesItem[];
+  expenses: HubExpenseItem[];
   hubUser: { id: string; name: string };
 }
 
 export default function HubClient({
   unverifiedProducts,
   myStoreProducts,
+  salesEvents,
+  expenses: initialExpenses,
   hubUser,
 }: HubClientProps) {
-  const [activeTab, setActiveTab] = useState<"VERIFIKASI" | "ETALASE">("VERIFIKASI");
+  const [activeTab, setActiveTab] = useState<"VERIFIKASI" | "ETALASE" | "KEUANGAN">("VERIFIKASI");
+  const [timeFilter, setTimeFilter] = useState<"SEMUA" | "BULAN_INI" | "HARI_INI">("SEMUA");
   const [searchMyStore, setSearchMyStore] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editImage, setEditImage] = useState<File | null>(null);
@@ -39,6 +81,20 @@ export default function HubClient({
   const [compressing, setCompressing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Biaya Operasional Mandiri Hub (Opsi B)
+  const [expenses, setExpenses] = useState<HubExpenseItem[]>(initialExpenses);
+  const [isAddingExpense, setIsAddingExpense] = useState(false);
+  const [expenseTitle, setExpenseTitle] = useState("");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseCategory, setExpenseCategory] = useState("OPERASIONAL");
+  const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [expenseNotes, setExpenseNotes] = useState("");
+  const [deleteExpenseTarget, setDeleteExpenseTarget] = useState<HubExpenseItem | null>(null);
+
+  useEffect(() => {
+    setExpenses(initialExpenses);
+  }, [initialExpenses]);
 
   useEffect(() => {
     if (message) {
@@ -51,20 +107,6 @@ export default function HubClient({
     if (!imageUrl) return false;
     if (!imageExpiresAt) return true; // Foto panen asli petani tetap valid
     return new Date(imageExpiresAt).getTime() > Date.now();
-  };
-
-  const handleRemoveStore = async (productId: string) => {
-    if (!confirm("Turunkan komoditas ini dari etalase tokomu? (Data panen asli petani tetap aman & utuh)")) return;
-    setLoading(true);
-    setMessage(null);
-
-    const res = await removeStoreProductAction(productId);
-    setLoading(false);
-    if (res.success) {
-      setMessage({ type: "success", text: res.message });
-    } else {
-      setMessage({ type: "error", text: res.message });
-    }
   };
 
   const handleEditImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,6 +167,62 @@ export default function HubClient({
     }
   };
 
+  const handleRemoveStore = async (productId: string) => {
+    if (!confirm("Turunkan komoditas ini dari etalase tokomu? (Data panen asli petani tetap aman & utuh)")) return;
+    setLoading(true);
+    setMessage(null);
+
+    const res = await removeStoreProductAction(productId);
+    setLoading(false);
+    if (res.success) {
+      setMessage({ type: "success", text: res.message });
+    } else {
+      setMessage({ type: "error", text: res.message });
+    }
+  };
+
+  const handleAddExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+
+    const res = await addExpenseAction({
+      title: expenseTitle,
+      amount: Number(expenseAmount),
+      category: expenseCategory,
+      date: expenseDate,
+      notes: expenseNotes,
+    });
+
+    setLoading(false);
+    if (res.success && res.expense) {
+      setMessage({ type: "success", text: res.message });
+      setExpenses((prev) => [res.expense as HubExpenseItem, ...prev]);
+      setIsAddingExpense(false);
+      setExpenseTitle("");
+      setExpenseAmount("");
+      setExpenseNotes("");
+    } else {
+      setMessage({ type: "error", text: res.message });
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    setLoading(true);
+    setMessage(null);
+
+    const res = await deleteExpenseAction(id);
+    setLoading(false);
+    setDeleteExpenseTarget(null);
+
+    if (res.success) {
+      setMessage({ type: "success", text: res.message });
+      setExpenses((prev) => prev.filter((item) => item.id !== id));
+    } else {
+      setMessage({ type: "error", text: res.message });
+    }
+  };
+
   const filteredMyStore = myStoreProducts.filter((p) => {
     const q = searchMyStore.toLowerCase().trim();
     if (!q) return true;
@@ -135,6 +233,46 @@ export default function HubClient({
     );
   });
 
+  // Filter Keuangan Hub
+  const filteredFinancialData = useMemo(() => {
+    const now = new Date();
+    const isSameDay = (d: Date) =>
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear();
+
+    const isSameMonth = (d: Date) =>
+      d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+
+    const datePasses = (dateInput: Date | string) => {
+      const d = new Date(dateInput);
+      if (timeFilter === "HARI_INI") return isSameDay(d);
+      if (timeFilter === "BULAN_INI") return isSameMonth(d);
+      return true;
+    };
+
+    const filteredSales = salesEvents.filter((s) => datePasses(s.date));
+    const filteredExpenses = expenses.filter((ex) => datePasses(ex.date));
+
+    const totalRev = filteredSales.reduce((sum, s) => sum + s.revenue, 0);
+    const totalFarmer = filteredSales.reduce((sum, s) => sum + s.farmerCost, 0);
+    const totalManual = filteredExpenses.reduce((sum, ex) => sum + ex.amount, 0);
+    const totalExp = totalFarmer + totalManual;
+    const netProf = totalRev - totalExp;
+    const marginPct = totalRev > 0 ? Math.round((netProf / totalRev) * 1000) / 10 : 0;
+
+    return {
+      sales: filteredSales,
+      manualExpenses: filteredExpenses,
+      totalRevenue: totalRev,
+      totalFarmerCost: totalFarmer,
+      totalManualExpense: totalManual,
+      totalExpense: totalExp,
+      netProfit: netProf,
+      profitMarginPercent: marginPct,
+    };
+  }, [salesEvents, expenses, timeFilter]);
+
   return (
     <div className="p-4 max-w-7xl mx-auto space-y-4 font-sans">
       {/* Header Dashboard Hub */}
@@ -143,19 +281,19 @@ export default function HubClient({
           <h1 className="text-xl font-bold text-gray-900">
             Toko {hubUser.name} <span className="text-sm font-normal text-gray-500">(Hub Pedagang)</span>
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Verifikasi komoditas petani dan kelola etalase bahan untuk restoran mitra.
+          <p className="text-gray-500 text-xs sm:text-sm mt-1">
+            Verifikasi komoditas petani, kelola etalase bahan untuk restoran, dan pantau margin laba bersih toko.
           </p>
         </div>
 
         {/* Tab Navigasi Halaman */}
-        <div className="flex gap-2">
+        <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
           <button
             onClick={() => setActiveTab("VERIFIKASI")}
-            className={`px-3 py-2 rounded-md text-xs font-medium transition cursor-pointer border ${
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition cursor-pointer ${
               activeTab === "VERIFIKASI"
-                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                ? "bg-white text-emerald-700 shadow-xs"
+                : "text-gray-600 hover:text-gray-900"
             }`}
           >
             Antrean Masuk ({unverifiedProducts.length})
@@ -163,13 +301,24 @@ export default function HubClient({
 
           <button
             onClick={() => setActiveTab("ETALASE")}
-            className={`px-3 py-2 rounded-md text-xs font-medium transition cursor-pointer border ${
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition cursor-pointer ${
               activeTab === "ETALASE"
-                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                ? "bg-white text-emerald-700 shadow-xs"
+                : "text-gray-600 hover:text-gray-900"
             }`}
           >
             Etalase Toko ({myStoreProducts.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab("KEUANGAN")}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition cursor-pointer ${
+              activeTab === "KEUANGAN"
+                ? "bg-white text-emerald-700 shadow-xs"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            💰 Laporan Keuangan
           </button>
         </div>
       </div>
@@ -194,21 +343,20 @@ export default function HubClient({
         </div>
       )}
 
-      {/* TAB 1: VERIFIKASI BAHAN DARI PETANI */}
+      {/* ========================================================= */}
+      {/* TAB 1: ANTREAN VERIFIKASI PANEN MASUK                     */}
+      {/* ========================================================= */}
       {activeTab === "VERIFIKASI" && (
-        <section className="bg-white p-4 rounded-md border border-gray-200 space-y-4">
-          <div className="flex justify-between items-center">
+        <section className="bg-white p-4 rounded-md border border-gray-200 space-y-3">
+          <div className="flex justify-between items-center border-b border-gray-100 pb-2">
             <div>
               <h2 className="text-base font-bold text-gray-900">
-                Verifikasi Bahan Masuk
+                Antrean Panen Masuk ({unverifiedProducts.length})
               </h2>
               <p className="text-xs text-gray-500">
-                Pilih komoditas petani untuk dimasukkan dan dijual di tokomu hari ini.
+                Komoditas yang baru saja didaftarkan petani mitra dan siap Anda verifikasi untuk dijual ke restoran.
               </p>
             </div>
-            <span className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded font-medium">
-              {unverifiedProducts.length} Menunggu Diproses
-            </span>
           </div>
 
           {unverifiedProducts.length === 0 ? (
@@ -249,9 +397,7 @@ export default function HubClient({
                           )}
                         </td>
                         <td className="py-2.5 px-3 font-medium text-gray-900">{item.name}</td>
-                        <td className="py-2.5 px-3 text-gray-700">
-                          {item.user?.name || "Petani"}
-                        </td>
+                        <td className="py-2.5 px-3 text-gray-700">{item.user?.name || "Petani"}</td>
                         <td className="py-2.5 px-3">
                           {item.stock} {item.unit}
                         </td>
@@ -278,15 +424,15 @@ export default function HubClient({
                             <input
                               type="text"
                               name="description"
-                              placeholder="Deskripsi komoditas (opsional)"
-                              className="w-48 px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:border-emerald-500 outline-none"
+                              placeholder="Deskripsi mutu (opsional)..."
+                              className="w-40 px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-emerald-500 outline-none"
                             />
                             <button
                               type="submit"
                               disabled={loading}
-                              className="px-3 py-1.5 bg-emerald-600 text-white rounded text-xs font-medium hover:bg-emerald-700 transition cursor-pointer disabled:opacity-50"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1.5 rounded transition cursor-pointer text-xs disabled:opacity-50"
                             >
-                              Jual di Toko
+                              Verifikasi
                             </button>
                           </form>
                         </td>
@@ -300,53 +446,52 @@ export default function HubClient({
         </section>
       )}
 
-      {/* TAB 2: ETALASE TOKO PEDAGANG */}
+      {/* ========================================================= */}
+      {/* TAB 2: ETALASE TOKO HUB                                   */}
+      {/* ========================================================= */}
       {activeTab === "ETALASE" && (
-        <section className="space-y-4">
-          <div className="bg-white p-4 rounded-md border border-gray-200 flex flex-col md:flex-row items-center justify-between gap-3">
+        <section className="bg-white p-4 rounded-md border border-gray-200 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
             <div>
               <h2 className="text-base font-bold text-gray-900">
-                Katalog Etalase Toko {hubUser.name}
+                Etalase Bahan Toko ({filteredMyStore.length})
               </h2>
               <p className="text-xs text-gray-500">
-                Komoditas yang aktif dijual dan dapat dipesan oleh restoran mitra.
+                Bahan segar yang sedang aktif dijual di etalase toko Anda untuk dipesan restoran mitra.
               </p>
             </div>
 
-            <div className="w-full md:w-72">
+            <div className="w-full sm:w-64">
               <input
                 type="text"
+                placeholder="Cari bahan etalase..."
                 value={searchMyStore}
                 onChange={(e) => setSearchMyStore(e.target.value)}
-                placeholder="Cari komoditas toko..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs outline-none focus:border-emerald-500"
+                className="w-full text-xs border border-gray-300 rounded-md px-3 py-1.5 outline-none focus:border-emerald-500"
               />
             </div>
           </div>
 
           {filteredMyStore.length === 0 ? (
-            <div className="bg-white p-8 rounded-md border border-dashed border-gray-200 text-center text-gray-500 space-y-1">
-              <p className="font-medium text-gray-800 text-sm">
-                {searchMyStore
-                  ? `Tidak ada komoditas dengan nama "${searchMyStore}"`
-                  : "Belum ada komoditas yang diverifikasi untuk dijual."}
+            <div className="bg-gray-50 p-8 rounded-md text-center border border-dashed border-gray-200">
+              <p className="text-gray-500 text-sm font-medium">
+                Belum ada komoditas di etalase tokomu.
               </p>
-              <p className="text-xs text-gray-400">
-                Periksa tab antrean masuk untuk menambahkan bahan panen ke etalase.
+              <p className="text-xs text-gray-400 mt-1">
+                Buka tab &quot;Antrean Masuk&quot; untuk memverifikasi bahan panen petani.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {filteredMyStore.map((item) => {
-                const validImage = isImageValid(item.imageUrl, item.imageExpiresAt);
-
+                const valid = isImageValid(item.imageUrl, item.imageExpiresAt);
                 return (
                   <div
                     key={item.id}
-                    className="bg-white border border-gray-200 rounded-md overflow-hidden flex flex-col justify-between"
+                    className="border border-gray-200 rounded-lg overflow-hidden flex flex-col justify-between bg-white hover:shadow-sm transition"
                   >
-                    <div className="h-40 w-full bg-gray-100 relative">
-                      {validImage ? (
+                    <div className="relative h-40 w-full bg-gray-100">
+                      {valid ? (
                         <>
                           <img
                             src={item.imageUrl!}
@@ -374,9 +519,7 @@ export default function HubClient({
                         </div>
 
                         {item.description ? (
-                          <p className="text-xs text-gray-600 line-clamp-2">
-                            {item.description}
-                          </p>
+                          <p className="text-xs text-gray-600 line-clamp-2">{item.description}</p>
                         ) : null}
 
                         <div className="pt-2 border-t border-gray-100 text-xs space-y-1">
@@ -387,8 +530,7 @@ export default function HubClient({
                             </span>
                           </div>
                           <div className="text-gray-500">
-                            Harga Beli:{" "}
-                            <span>Rp {item.priceFarmer.toLocaleString("id-ID")}</span>
+                            Harga Beli: <span>Rp {item.priceFarmer.toLocaleString("id-ID")}</span>
                           </div>
                         </div>
 
@@ -426,14 +568,357 @@ export default function HubClient({
         </section>
       )}
 
+      {/* ========================================================= */}
+      {/* TAB 3: LAPORAN KEUANGAN & LABA BERSIH HUB                  */}
+      {/* ========================================================= */}
+      {activeTab === "KEUANGAN" && (
+        <section className="space-y-6">
+          {/* Header Bar Keuangan */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-3.5 rounded-lg border border-gray-200 shadow-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-gray-500 mr-1">Periode:</span>
+              {(["SEMUA", "BULAN_INI", "HARI_INI"] as const).map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setTimeFilter(filter)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition cursor-pointer ${
+                    timeFilter === filter
+                      ? "bg-emerald-600 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {filter === "SEMUA" ? "Semua Waktu" : filter === "BULAN_INI" ? "Bulan Ini" : "Hari Ini"}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setIsAddingExpense(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-md shadow-xs transition cursor-pointer"
+            >
+              <span>+</span> Catat Biaya Operasional Toko
+            </button>
+          </div>
+
+          {/* 3 Kartu Ringkasan Keuangan Hub */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* 1. Total Omzet Restoran */}
+            <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-xs relative overflow-hidden">
+              <div className="flex justify-between items-start">
+                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                  1. Total Pendapatan (Omzet)
+                </span>
+                <span className="text-emerald-600 text-base">🟢</span>
+              </div>
+              <p className="text-2xl font-black text-gray-900 mt-2">
+                Rp {filteredFinancialData.totalRevenue.toLocaleString("id-ID")}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Dari {filteredFinancialData.sales.length} item pesanan bahan ke restoran
+              </p>
+            </div>
+
+            {/* 2. Total Pengeluaran */}
+            <div className="bg-white p-5 rounded-lg border border-rose-200 shadow-xs relative overflow-hidden">
+              <div className="flex justify-between items-start">
+                <span className="text-xs font-semibold uppercase tracking-wider text-rose-700">
+                  2. Total Pengeluaran Toko
+                </span>
+                <span className="text-rose-600 text-base">🔴</span>
+              </div>
+              <p className="text-2xl font-black text-rose-600 mt-2">
+                Rp {filteredFinancialData.totalExpense.toLocaleString("id-ID")}
+              </p>
+              <div className="text-xs text-gray-500 mt-1 flex flex-col gap-0.5">
+                <span>
+                  Beli dari Petani (HPP): Rp {filteredFinancialData.totalFarmerCost.toLocaleString("id-ID")}
+                </span>
+                <span>
+                  Operasional Toko: Rp {filteredFinancialData.totalManualExpense.toLocaleString("id-ID")}
+                </span>
+              </div>
+            </div>
+
+            {/* 3. Margin Keuntungan Bersih Hub */}
+            <div className="bg-white p-5 rounded-lg border-2 border-emerald-500 shadow-xs relative overflow-hidden bg-gradient-to-br from-white to-emerald-50/40">
+              <div className="flex justify-between items-start">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+                  3. Untung Bersih (Margin Toko)
+                </span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  Margin {filteredFinancialData.profitMarginPercent}%
+                </span>
+              </div>
+              <p
+                className={`text-2xl font-black mt-2 ${
+                  filteredFinancialData.netProfit >= 0 ? "text-emerald-700" : "text-rose-600"
+                }`}
+              >
+                Rp {filteredFinancialData.netProfit.toLocaleString("id-ID")}
+              </p>
+              <p className="text-xs text-gray-600 mt-1">Keuntungan bersih yang diperoleh Toko Hub</p>
+            </div>
+          </div>
+
+          {/* Rincian Arus Kas Hub */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Tabel Penjualan Bahan (Pemasukan) */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-xs p-4 space-y-3">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                  <span className="text-emerald-600 font-bold">↑</span> Rincian Penjualan Bahan ke Restoran
+                </h3>
+                <span className="text-xs text-gray-500 font-medium">
+                  {filteredFinancialData.sales.length} item
+                </span>
+              </div>
+
+              {filteredFinancialData.sales.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-xs">
+                  Belum ada transaksi penjualan pada periode ini.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                  {filteredFinancialData.sales.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-2.5 rounded-md border border-gray-100 bg-gray-50/60 flex justify-between items-center gap-2 text-xs"
+                    >
+                      <div className="space-y-0.5">
+                        <div className="font-semibold text-gray-900">
+                          {item.productName}{" "}
+                          <span className="text-gray-500 font-normal">
+                            ({item.quantity} {item.unit})
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          {new Date(item.date).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}{" "}
+                          • Pemesan: <strong className="text-gray-700">{item.buyerName}</strong>
+                        </div>
+                        <div className="text-[11px] text-gray-400">
+                          Beli Rp {item.farmerCostPerUnit.toLocaleString("id-ID")} → Jual Rp{" "}
+                          {item.pricePerUnit.toLocaleString("id-ID")}/{item.unit}
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <div className="font-bold text-emerald-600">
+                          + Rp {item.revenue.toLocaleString("id-ID")}
+                        </div>
+                        <div className="text-[10px] text-gray-500">
+                          Margin: Rp {item.netMargin.toLocaleString("id-ID")}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Tabel Catatan Biaya Operasional Toko (Pengeluaran Mandiri) */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-xs p-4 space-y-3">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                  <span className="text-rose-600 font-bold">↓</span> Biaya Operasional Toko Hub
+                </h3>
+                <span className="text-xs text-gray-500 font-medium">
+                  {filteredFinancialData.manualExpenses.length} catatan
+                </span>
+              </div>
+
+              {filteredFinancialData.manualExpenses.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-xs">
+                  Belum ada catatan biaya operasional toko. Klik{" "}
+                  <button
+                    onClick={() => setIsAddingExpense(true)}
+                    className="text-emerald-600 font-medium underline"
+                  >
+                    + Catat Biaya Operasional
+                  </button>{" "}
+                  untuk mencatat bensin armada atau plastik packing.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                  {filteredFinancialData.manualExpenses.map((exp) => (
+                    <div
+                      key={exp.id}
+                      className="p-2.5 rounded-md border border-gray-100 bg-gray-50/60 flex justify-between items-center gap-2 text-xs"
+                    >
+                      <div className="space-y-0.5">
+                        <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                          <span>{exp.title}</span>
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-normal bg-gray-200 text-gray-700">
+                            {exp.category === "LOGISTIK"
+                              ? "Logistik / Bensin"
+                              : exp.category === "OPERASIONAL"
+                              ? "Operasional Toko"
+                              : exp.category}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          {new Date(exp.date).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                          {exp.notes ? ` • ${exp.notes}` : ""}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="font-bold text-rose-600 text-right">
+                          - Rp {exp.amount.toLocaleString("id-ID")}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteExpenseTarget(exp)}
+                          className="text-gray-400 hover:text-rose-600 p-1 text-xs cursor-pointer"
+                          title="Hapus biaya operasional ini"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Modal Catat Biaya Operasional Toko Hub */}
+      {isAddingExpense && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg border border-gray-200 w-full max-w-md p-5 space-y-4">
+            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+              <h3 className="font-bold text-gray-900 text-sm">Catat Biaya Operasional Toko</h3>
+              <button
+                type="button"
+                onClick={() => setIsAddingExpense(false)}
+                className="text-gray-400 hover:text-gray-600 text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddExpense} className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Keterangan Biaya
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="cth: Bensin Kurir Armada / Plastik Packing"
+                  value={expenseTitle}
+                  onChange={(e) => setExpenseTitle(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Jumlah Biaya (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="100"
+                    placeholder="cth: 50000"
+                    value={expenseAmount}
+                    onChange={(e) => setExpenseAmount(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Kategori</label>
+                  <select
+                    value={expenseCategory}
+                    onChange={(e) => setExpenseCategory(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500 bg-white"
+                  >
+                    <option value="LOGISTIK">Bensin & Kurir</option>
+                    <option value="OPERASIONAL">Operasional & Packing</option>
+                    <option value="LAINNYA">Lain-lain</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Tanggal</label>
+                <input
+                  type="date"
+                  required
+                  value={expenseDate}
+                  onChange={(e) => setExpenseDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500 bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Catatan Tambahan <span className="text-gray-400 font-normal">(Opsional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="cth: Pengantaran pesanan ke resto Senopati"
+                  value={expenseNotes}
+                  onChange={(e) => setExpenseNotes(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setIsAddingExpense(false)}
+                  className="flex-1 py-2 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md disabled:opacity-50"
+                >
+                  {loading ? "Menyimpan..." : "Simpan Biaya"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog Konfirmasi Hapus Biaya Operasional Hub */}
+      <ConfirmDialog
+        isOpen={!!deleteExpenseTarget}
+        title="Hapus Catatan Pengeluaran Toko?"
+        description={`Biaya operasional "${deleteExpenseTarget?.title}" sebesar Rp ${deleteExpenseTarget?.amount.toLocaleString(
+          "id-ID"
+        )} akan dihapus dari catatan keuangan.`}
+        confirmText="Hapus Biaya"
+        cancelText="Batal"
+        isDanger
+        isLoading={loading}
+        onConfirm={() => {
+          if (deleteExpenseTarget) handleDeleteExpense(deleteExpenseTarget.id);
+        }}
+        onCancel={() => setDeleteExpenseTarget(null)}
+      />
+
       {/* Modal Edit Produk Toko */}
       {editingProduct && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-md p-5 max-w-md w-full border border-gray-200 space-y-4">
             <div className="flex justify-between items-center border-b border-gray-200 pb-3">
-              <h3 className="font-bold text-gray-900 text-sm">
-                Edit: {editingProduct.name}
-              </h3>
+              <h3 className="font-bold text-gray-900 text-sm">Edit: {editingProduct.name}</h3>
               <button
                 onClick={() => setEditingProduct(null)}
                 className="text-gray-400 hover:text-gray-600 text-sm cursor-pointer"
@@ -458,7 +943,7 @@ export default function HubClient({
                   className="w-full border border-gray-300 rounded-md p-2 outline-none focus:border-emerald-500"
                 />
                 <span className="text-[10px] text-gray-400 mt-0.5 block">
-                  Harga beli modal: Rp {editingProduct.priceFarmer.toLocaleString("id-ID")}
+                  Harga beli modal petani: Rp {editingProduct.priceFarmer.toLocaleString("id-ID")}
                 </span>
               </div>
 
@@ -502,9 +987,7 @@ export default function HubClient({
                   disabled={compressing}
                   className="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer disabled:opacity-50"
                 />
-                {compressing && (
-                  <p className="text-[10px] text-gray-500 mt-1">Mengompres foto...</p>
-                )}
+                {compressing && <p className="text-[10px] text-gray-500 mt-1">Mengompres foto...</p>}
                 {editPreview && !compressing && (
                   <div className="mt-2 relative rounded overflow-hidden border border-gray-200 w-full h-24">
                     <img

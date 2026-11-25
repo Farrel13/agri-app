@@ -12,6 +12,7 @@ export interface TambahPanenInput {
   stock: number;
   unit: string;
   priceFarmer: number;
+  costFarmer?: number; // Estimasi modal tani per unit (Opsi A)
   imageUrl?: string | null;
 }
 
@@ -29,13 +30,23 @@ export async function tambahPanen(data: TambahPanenInput) {
       return { success: false, message: rateCheck.message };
     }
 
-    const { name, stock, unit, priceFarmer, imageUrl } = data;
+    const { name, stock, unit, priceFarmer, costFarmer, imageUrl } = data;
 
     const cleanName = (name || "").trim().slice(0, 100);
     const cleanUnit = ["kg", "ton", "ikat", "karung"].includes(unit) ? unit : "kg";
+    const parsedCostFarmer = Math.max(0, Math.floor(Number(costFarmer || 0)));
 
-    if (!cleanName || isNaN(stock) || isNaN(priceFarmer) || stock <= 0 || priceFarmer <= 0) {
-      return { success: false, message: "Mohon isi semua data panen dengan benar." };
+    if (
+      !cleanName ||
+      isNaN(stock) ||
+      isNaN(priceFarmer) ||
+      stock <= 0 ||
+      stock > 100_000_000 ||
+      priceFarmer <= 0 ||
+      priceFarmer > 1_000_000_000 ||
+      parsedCostFarmer > 1_000_000_000
+    ) {
+      return { success: false, message: "Mohon isi semua data panen dengan benar (nilai dalam batas wajar)." };
     }
 
     // Masa aktif panen petani bertahan berdasarkan ketersediaan stok hasil panen (tidak otomatis dihapus per 24 jam)
@@ -45,6 +56,7 @@ export async function tambahPanen(data: TambahPanenInput) {
         stock: Math.floor(Number(stock)),
         unit: cleanUnit,
         priceFarmer: Math.floor(Number(priceFarmer)),
+        costFarmer: parsedCostFarmer,
         userId: session.user.id,
         isVerified: false,
         imageUrl: imageUrl || null,
@@ -78,6 +90,8 @@ export async function addProductAction(formData: FormData) {
   const stock = Number(formData.get("stock"));
   const unit = formData.get("unit") as string;
   const priceFarmer = Number(formData.get("priceFarmer"));
+  const rawCostFarmer = formData.get("costFarmer");
+  const costFarmer = rawCostFarmer ? Math.max(0, Math.floor(Number(rawCostFarmer))) : 0;
   const file = formData.get("image") as File | null;
 
   let imageUrl: string | null = null;
@@ -109,7 +123,7 @@ export async function addProductAction(formData: FormData) {
     }
   }
 
-  return tambahPanen({ name, stock, unit, priceFarmer, imageUrl });
+  return tambahPanen({ name, stock, unit, priceFarmer, costFarmer, imageUrl });
 }
 
 // 3. Edit Panen oleh Petani
@@ -132,7 +146,16 @@ export async function updateProductFarmerAction(formData: FormData) {
     const priceFarmer = Number(formData.get("priceFarmer"));
     const file = formData.get("image") as File | null;
 
-    if (!productId || !name || isNaN(stock) || isNaN(priceFarmer) || stock < 0 || priceFarmer <= 0) {
+    if (
+      !productId ||
+      !name ||
+      isNaN(stock) ||
+      isNaN(priceFarmer) ||
+      stock < 0 ||
+      stock > 100_000_000 ||
+      priceFarmer <= 0 ||
+      priceFarmer > 1_000_000_000
+    ) {
       return { success: false, message: "Data yang dimasukkan tidak valid." };
     }
 
@@ -144,8 +167,13 @@ export async function updateProductFarmerAction(formData: FormData) {
       return { success: false, message: "Produk panen tidak ditemukan atau bukan milik Anda." };
     }
 
+    const rawCostFarmer = formData.get("costFarmer");
+    const costFarmer =
+      rawCostFarmer !== null && rawCostFarmer !== "" && !isNaN(Number(rawCostFarmer))
+        ? Math.min(1_000_000_000, Math.max(0, Math.floor(Number(rawCostFarmer))))
+        : (existing.costFarmer || 0);
+
     let newImageUrl: string | undefined = undefined;
-    let newExpiresAt: Date | undefined = undefined;
 
     if (file && file.size > 0 && typeof file.arrayBuffer === "function") {
       const bytes = await file.arrayBuffer();
@@ -171,6 +199,7 @@ export async function updateProductFarmerAction(formData: FormData) {
         stock: Math.floor(stock),
         unit: ["kg", "ton", "ikat", "karung"].includes(unit) ? unit : existing.unit,
         priceFarmer: Math.floor(priceFarmer),
+        costFarmer: Math.floor(costFarmer),
         ...(newImageUrl && {
           imageUrl: newImageUrl,
         }),

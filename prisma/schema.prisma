@@ -98,6 +98,9 @@ model User {
 
   // Relasi: Notifikasi yang ditujukan untuk user ini
   notifications    Notification[]
+
+  // Relasi: Catatan pengeluaran operasional (Petani & Hub)
+  expenses         Expense[]
 }
 
 // ==========================================
@@ -109,11 +112,12 @@ model Product {
   description    String?   // Deskripsi dari Hub (opsional)
   stock          Int
   unit           String    // kg, ikat, ton, sak, gram
-  priceFarmer    Int       // Harga modal dari Petani
+  priceFarmer    Int       // Harga jual modal dari Petani
+  costFarmer     Int?      @default(0) // Estimasi biaya modal bibit/tani per unit dari Petani (Opsi A)
   priceHub       Int?      // Harga jual dari Hub ke Restoran
   isVerified     Boolean   @default(false)
   imageUrl       String?
-  imageExpiresAt DateTime? // Foto panen 24 jam
+  imageExpiresAt DateTime? // Foto panen 24 jam (hanya untuk etalase hub)
 
   // Relasi Petani (Penanam)
   userId         String
@@ -302,4 +306,25 @@ model SystemLog {
   @@index([severity])
   @@index([createdAt])
   @@index([action])
+}
+
+// ==========================================
+// 10. MODEL EXPENSE (Catatan Pengeluaran Mandiri Petani & Hub)
+// ==========================================
+model Expense {
+  id          String   @id @default(cuid())
+  title       String   // Misal: "Beli Pupuk Urea", "Beli Bibit Cabai", "Upah Buruh Panen", "Bensin Kurir"
+  category    String   @default("OPERASIONAL") // "BIBIT_PUPUK", "OPERASIONAL", "LOGISTIK", "LAINNYA"
+  amount      Int      // Nominal biaya dalam Rupiah
+  notes       String?  // Catatan keterangan
+  date        DateTime @default(now()) // Tanggal pengeluaran
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([date])
 }

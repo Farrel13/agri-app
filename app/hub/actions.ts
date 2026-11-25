@@ -6,6 +6,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
 import { validateImageBuffer } from "@/lib/file-validator";
 import { checkServerActionRateLimit } from "@/lib/rate-limit";
+import { logServerEvent } from "@/lib/system-logger";
 
 // Verifikasi hasil panen petani oleh toko Hub
 export async function verifyProductAction(formData: FormData) {
@@ -22,10 +23,10 @@ export async function verifyProductAction(formData: FormData) {
 
     const productId = formData.get("productId") as string;
     const priceHub = Number(formData.get("priceHub"));
-    const description = (formData.get("description") as string)?.trim() || null;
+    const description = (formData.get("description") as string)?.trim().slice(0, 500) || null;
 
-    if (!productId || isNaN(priceHub) || priceHub <= 0) {
-      return { success: false, message: "Harga jual toko harus diisi dengan benar." };
+    if (!productId || isNaN(priceHub) || priceHub <= 0 || priceHub > 1_000_000_000) {
+      return { success: false, message: "Harga jual toko harus diisi dengan benar (maks Rp 1 Miliar)." };
     }
 
     // Cegah IDOR / Pembajakan produk yang sudah diverifikasi oleh Toko Hub lain
@@ -44,6 +45,14 @@ export async function verifyProductAction(formData: FormData) {
       };
     }
 
+    // Business Logic: Harga jual toko tidak boleh di bawah harga modal petani
+    if (priceHub < existing.priceFarmer) {
+      return {
+        success: false,
+        message: `Harga jual toko tidak boleh lebih rendah dari harga modal beli petani (Rp ${existing.priceFarmer.toLocaleString("id-ID")}).`,
+      };
+    }
+
     // Etalase Toko Hub berlaku harian (siklus pasar 24 jam)
     const hubExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -57,6 +66,15 @@ export async function verifyProductAction(formData: FormData) {
         imageExpiresAt: hubExpiresAt, // Masa berlaku etalase toko pedagang
       },
     });
+
+    logServerEvent({
+      severity: "INFO",
+      action: "HUB_VERIFY_PRODUCT",
+      message: `Toko Hub '${session.user.username}' memverifikasi komoditas '${existing.name}' dengan harga Rp ${priceHub.toLocaleString("id-ID")}`,
+      userId: session.user.id,
+      endpoint: "ServerAction:verifyProductAction",
+      metadata: { productId, priceHub, priceFarmer: existing.priceFarmer },
+    }).catch(() => {});
 
     revalidatePath("/hub");
     revalidatePath("/restoran");
@@ -86,8 +104,16 @@ export async function updateStoreProductAction(formData: FormData) {
     const description = (formData.get("description") as string)?.trim() || null;
     const file = formData.get("image") as File | null;
 
-    if (!productId || isNaN(priceHub) || isNaN(stock)) {
-      return { success: false, message: "Data tidak valid." };
+    if (
+      !productId ||
+      isNaN(priceHub) ||
+      isNaN(stock) ||
+      priceHub <= 0 ||
+      priceHub > 1_000_000_000 ||
+      stock < 0 ||
+      stock > 100_000_000
+    ) {
+      return { success: false, message: "Data harga atau kuantitas stok tidak valid." };
     }
 
     // Pastikan produk adalah milik toko Hub yang bersangkutan
@@ -97,6 +123,13 @@ export async function updateStoreProductAction(formData: FormData) {
 
     if (!existing || existing.verifiedById !== session.user.id) {
       return { success: false, message: "Anda tidak berhak mengubah produk ini." };
+    }
+
+    if (priceHub < existing.priceFarmer) {
+      return {
+        success: false,
+        message: `Harga jual toko tidak boleh lebih rendah dari modal beli petani (Rp ${existing.priceFarmer.toLocaleString("id-ID")}).`,
+      };
     }
 
     let newImageUrl: string | undefined = undefined;
@@ -175,6 +208,15 @@ export async function removeStoreProductAction(productId: string) {
         imageExpiresAt: null,
       },
     });
+
+    logServerEvent({
+      severity: "INFO",
+      action: "HUB_REMOVE_PRODUCT",
+      message: `Toko Hub '${session.user.username}' menurunkan komoditas '${existing.name}' dari etalase`,
+      userId: session.user.id,
+      endpoint: "ServerAction:removeStoreProductAction",
+      metadata: { productId, name: existing.name },
+    }).catch(() => {});
 
     revalidatePath("/hub");
     revalidatePath("/restoran");

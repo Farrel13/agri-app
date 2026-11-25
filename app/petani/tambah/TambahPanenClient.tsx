@@ -122,18 +122,32 @@ export default function TambahPanenClient() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Harga Jual Petani (Rp)
-            </label>
-            <input
-              type="number"
-              name="priceFarmer"
-              required
-              min="100"
-              placeholder="Contoh: 15000"
-              className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500 text-gray-900 bg-white"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Harga Jual Petani (Rp)
+              </label>
+              <input
+                type="number"
+                name="priceFarmer"
+                required
+                min="100"
+                placeholder="Contoh: 15000"
+                className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500 text-gray-900 bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Modal per Satuan (Rp) <span className="text-gray-400 font-normal">(Opsional)</span>
+              </label>
+              <input
+                type="number"
+                name="costFarmer"
+                min="0"
+                placeholder="cth: 10000 (bibit/pupuk)"
+                className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500 text-gray-900 bg-white"
+              />
+            </div>
           </div>
 
           <div>
