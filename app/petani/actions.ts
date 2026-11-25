@@ -239,16 +239,21 @@ export async function deleteProductFarmerAction(productId: string) {
 
     // Jika produk sudah memiliki riwayat transaksi di OrderItem, jangan hard-delete
     if (existing.orderItems && existing.orderItems.length > 0) {
-      // Set stok menjadi 0 agar tidak bisa dipesan lagi
+      // Set stok menjadi 0 agar tidak bisa dipesan lagi dan cabut verifikasi hub
       await prisma.product.update({
         where: { id: productId },
-        data: { stock: 0 },
+        data: {
+          stock: 0,
+          isVerified: false,
+          imageExpiresAt: null,
+        },
       });
       revalidatePath("/petani");
       revalidatePath("/hub");
+      revalidatePath("/restoran");
       return {
         success: true,
-        message: "Produk memiliki riwayat transaksi, stok berhasil dikosongkan (diarsipkan).",
+        message: `Komoditas "${existing.name}" memiliki riwayat transaksi, stok berhasil dikosongkan (diarsipkan).`,
       };
     }
 
@@ -258,7 +263,8 @@ export async function deleteProductFarmerAction(productId: string) {
 
     revalidatePath("/petani");
     revalidatePath("/hub");
-    return { success: true, message: "Hasil panen berhasil dihapus!" };
+    revalidatePath("/restoran");
+    return { success: true, message: `Hasil panen "${existing.name}" berhasil dihapus permanen!` };
   } catch (error) {
     console.error("Gagal menghapus panen:", error);
     return { success: false, message: "Terjadi kesalahan saat menghapus data." };

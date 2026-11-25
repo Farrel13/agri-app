@@ -309,7 +309,7 @@ export default function HubClient({
                 : "text-gray-600 hover:text-gray-900"
             }`}
           >
-            💰 Laporan Keuangan
+             Laporan Keuangan
           </button>
         </div>
       </div>

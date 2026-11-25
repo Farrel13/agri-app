@@ -94,8 +94,9 @@ export default function PetaniClient({
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editImage, setEditImage] = useState<File | null>(null);
   const [editPreview, setEditPreview] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; hasOrders?: boolean } | null>(null);
   const [finishTarget, setFinishTarget] = useState<{ id: string; name: string } | null>(null);
+  const [harvestFilter, setHarvestFilter] = useState<"SEMUA" | "AKTIF" | "HABIS">("SEMUA");
 
   // Catatan Pengeluaran (Opsi B)
   const [isAddingExpense, setIsAddingExpense] = useState(false);
@@ -151,135 +152,182 @@ export default function PetaniClient({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage(null);
+    try {
+      setLoading(true);
+      setMessage(null);
 
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("stock", stock);
-    formData.append("unit", unit);
-    formData.append("priceFarmer", priceFarmer);
-    if (costFarmer) {
-      formData.append("costFarmer", costFarmer);
-    }
-    if (selectedImage) {
-      formData.append("image", selectedImage);
-    }
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("stock", stock);
+      formData.append("unit", unit);
+      formData.append("priceFarmer", priceFarmer);
+      if (costFarmer) {
+        formData.append("costFarmer", costFarmer);
+      }
+      if (selectedImage) {
+        formData.append("image", selectedImage);
+      }
 
-    const res = await addProductAction(formData);
+      const res = await addProductAction(formData);
 
-    setLoading(false);
-    if (res.success) {
-      setMessage({ type: "success", text: res.message });
-      setName("");
-      setStock("");
-      setPriceFarmer("");
-      setCostFarmer("");
-      setSelectedImage(null);
-      setPreviewUrl(null);
-    } else {
-      setMessage({ type: "error", text: res.message });
+      if (res.success) {
+        setMessage({ type: "success", text: res.message });
+        setName("");
+        setStock("");
+        setPriceFarmer("");
+        setCostFarmer("");
+        setSelectedImage(null);
+        setPreviewUrl(null);
+      } else {
+        setMessage({ type: "error", text: res.message });
+      }
+    } catch (err) {
+      console.error("Gagal mendaftarkan panen:", err);
+      setMessage({ type: "error", text: "Terjadi kesalahan saat mendaftarkan panen. Silakan coba lagi." });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingProduct) return;
-    setLoading(true);
-    setMessage(null);
+    try {
+      setLoading(true);
+      setMessage(null);
 
-    const formData = new FormData(e.currentTarget);
-    formData.append("productId", editingProduct.id);
-    if (editImage) {
-      formData.append("image", editImage);
-    }
+      const formData = new FormData(e.currentTarget);
+      formData.append("productId", editingProduct.id);
+      if (editImage) {
+        formData.append("image", editImage);
+      }
 
-    const res = await updateProductFarmerAction(formData);
-    setLoading(false);
+      const res = await updateProductFarmerAction(formData);
 
-    if (res.success) {
-      setMessage({ type: "success", text: res.message });
-      setEditingProduct(null);
-      setEditImage(null);
-      setEditPreview(null);
-    } else {
-      setMessage({ type: "error", text: res.message });
+      if (res.success) {
+        setMessage({ type: "success", text: res.message });
+        setEditingProduct(null);
+        setEditImage(null);
+        setEditPreview(null);
+      } else {
+        setMessage({ type: "error", text: res.message });
+      }
+    } catch (err) {
+      console.error("Gagal memperbarui panen:", err);
+      setMessage({ type: "error", text: "Terjadi kesalahan saat memperbarui panen. Silakan coba lagi." });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async (productId: string) => {
-    setLoading(true);
-    setMessage(null);
+    try {
+      setLoading(true);
+      setMessage(null);
 
-    const res = await deleteProductFarmerAction(productId);
-    setLoading(false);
-    setDeleteTarget(null);
+      const res = await deleteProductFarmerAction(productId);
 
-    if (res.success) {
-      setMessage({ type: "success", text: res.message });
-    } else {
-      setMessage({ type: "error", text: res.message });
+      if (res.success) {
+        setMessage({ type: "success", text: res.message });
+      } else {
+        setMessage({ type: "error", text: res.message });
+      }
+    } catch (err) {
+      console.error("Gagal menghapus panen:", err);
+      setMessage({ type: "error", text: "Gagal memproses penghapusan panen. Silakan periksa koneksi Anda." });
+    } finally {
+      setLoading(false);
+      setDeleteTarget(null);
     }
   };
 
   const handleFinish = async (productId: string) => {
-    setLoading(true);
-    setMessage(null);
+    try {
+      setLoading(true);
+      setMessage(null);
 
-    const res = await markHarvestFinishedAction(productId);
-    setLoading(false);
-    setFinishTarget(null);
+      const res = await markHarvestFinishedAction(productId);
 
-    if (res.success) {
-      setMessage({ type: "success", text: res.message });
-    } else {
-      setMessage({ type: "error", text: res.message });
+      if (res.success) {
+        setMessage({ type: "success", text: res.message });
+      } else {
+        setMessage({ type: "error", text: res.message });
+      }
+    } catch (err) {
+      console.error("Gagal menutup stok panen:", err);
+      setMessage({ type: "error", text: "Terjadi gangguan saat menandai panen habis." });
+    } finally {
+      setLoading(false);
+      setFinishTarget(null);
     }
   };
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage(null);
+    try {
+      setLoading(true);
+      setMessage(null);
 
-    const res = await addExpenseAction({
-      title: expenseTitle,
-      amount: Number(expenseAmount),
-      category: expenseCategory,
-      date: expenseDate,
-      notes: expenseNotes,
-    });
+      const res = await addExpenseAction({
+        title: expenseTitle,
+        amount: Number(expenseAmount),
+        category: expenseCategory,
+        date: expenseDate,
+        notes: expenseNotes,
+      });
 
-    setLoading(false);
-    if (res.success) {
-      setMessage({ type: "success", text: res.message });
-      setIsAddingExpense(false);
-      setExpenseTitle("");
-      setExpenseAmount("");
-      setExpenseNotes("");
-    } else {
-      setMessage({ type: "error", text: res.message });
+      if (res.success) {
+        setMessage({ type: "success", text: res.message });
+        setIsAddingExpense(false);
+        setExpenseTitle("");
+        setExpenseAmount("");
+        setExpenseNotes("");
+      } else {
+        setMessage({ type: "error", text: res.message });
+      }
+    } catch (err) {
+      console.error("Gagal mencatat pengeluaran:", err);
+      setMessage({ type: "error", text: "Terjadi kesalahan saat mencatat pengeluaran." });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteExpense = async (id: string) => {
-    setLoading(true);
-    setMessage(null);
+    try {
+      setLoading(true);
+      setMessage(null);
 
-    const res = await deleteExpenseAction(id);
-    setLoading(false);
-    setDeleteExpenseTarget(null);
+      const res = await deleteExpenseAction(id);
 
-    if (res.success) {
-      setMessage({ type: "success", text: res.message });
-    } else {
-      setMessage({ type: "error", text: res.message });
+      if (res.success) {
+        setMessage({ type: "success", text: res.message });
+      } else {
+        setMessage({ type: "error", text: res.message });
+      }
+    } catch (err) {
+      console.error("Gagal menghapus pengeluaran:", err);
+      setMessage({ type: "error", text: "Gagal menghapus pengeluaran. Silakan coba lagi." });
+    } finally {
+      setLoading(false);
+      setDeleteExpenseTarget(null);
     }
   };
 
   const isImageValid = (item: Product) => {
     return Boolean(item.imageUrl);
   };
+
+  // Filter Hasil Panen (Semua / Stok Tersedia / Habis atau Arsip)
+  const filteredProducts = useMemo(() => {
+    if (harvestFilter === "AKTIF") {
+      return products.filter((p) => p.stock > 0);
+    }
+    if (harvestFilter === "HABIS") {
+      return products.filter((p) => p.stock === 0);
+    }
+    return products;
+  }, [products, harvestFilter]);
 
   // Filter Keuangan Berdasarkan Periode Waktu
   const filteredData = useMemo(() => {
@@ -485,6 +533,7 @@ export default function PetaniClient({
                     </label>
                     <input
                       type="number"
+                      required
                       min="0"
                       placeholder="cth: 15000"
                       value={costFarmer}
@@ -501,6 +550,7 @@ export default function PetaniClient({
                   </label>
                   <input
                     type="file"
+                    required
                     accept="image/jpeg,image/png,image/webp"
                     onChange={handleImageChange}
                     className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
@@ -525,23 +575,70 @@ export default function PetaniClient({
 
             {/* Daftar Panen Milik Petani */}
             <div className="lg:col-span-2 space-y-3">
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-medium text-gray-900">
-                  Koleksi Panen Saya ({products.length})
-                </h2>
-                <span className="text-xs text-gray-500">Status verifikasi dan stok</span>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900">
+                    Koleksi Panen Saya ({products.length})
+                  </h2>
+                  <span className="text-xs text-gray-500">Status verifikasi dan stok komoditas</span>
+                </div>
+
+                {/* Filter Tab Panen */}
+                <div className="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setHarvestFilter("SEMUA")}
+                    className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                      harvestFilter === "SEMUA"
+                        ? "bg-white text-emerald-700 shadow-xs"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    Semua ({products.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHarvestFilter("AKTIF")}
+                    className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                      harvestFilter === "AKTIF"
+                        ? "bg-white text-emerald-700 shadow-xs"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    Tersedia ({products.filter((p) => p.stock > 0).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHarvestFilter("HABIS")}
+                    className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                      harvestFilter === "HABIS"
+                        ? "bg-white text-emerald-700 shadow-xs"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    Habis/Arsip ({products.filter((p) => p.stock === 0).length})
+                  </button>
+                </div>
               </div>
 
-              {products.length === 0 ? (
+              {filteredProducts.length === 0 ? (
                 <div className="bg-white p-6 rounded-md border border-gray-200 text-center">
-                  <p className="font-medium text-gray-700 text-sm">Belum ada panen yang didaftarkan</p>
+                  <p className="font-medium text-gray-700 text-sm">
+                    {harvestFilter === "AKTIF"
+                      ? "Tidak ada komoditas aktif dengan stok tersedia."
+                      : harvestFilter === "HABIS"
+                      ? "Belum ada komoditas panen yang habis atau diarsipkan."
+                      : "Belum ada panen yang didaftarkan"}
+                  </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    Isi form di samping untuk mengunggah komoditas hasil tani Anda.
+                    {harvestFilter === "SEMUA"
+                      ? "Isi form di samping untuk mengunggah komoditas hasil tani Anda."
+                      : "Ganti filter ke 'Semua' untuk melihat seluruh komoditas hasil panen Anda."}
                   </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {products.map((item) => {
+                  {filteredProducts.map((item) => {
                     const imgValid = isImageValid(item);
                     return (
                       <div
@@ -658,8 +755,22 @@ export default function PetaniClient({
                             </button>
                           )}
                           <button
-                            onClick={() => setDeleteTarget({ id: item.id, name: item.name })}
+                            onClick={() =>
+                              setDeleteTarget({
+                                id: item.id,
+                                name: item.name,
+                                hasOrders: Boolean(
+                                  (item.soldQuantity && item.soldQuantity > 0) ||
+                                  (item.totalEarned && item.totalEarned > 0)
+                                ),
+                              })
+                            }
                             className="py-1.5 px-3 text-xs font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 rounded-md transition cursor-pointer"
+                            title={
+                              Boolean((item.soldQuantity && item.soldQuantity > 0) || (item.totalEarned && item.totalEarned > 0))
+                                ? "Arsipkan panen yang memiliki riwayat pesanan"
+                                : "Hapus panen secara permanen"
+                            }
                           >
                             Hapus
                           </button>
@@ -1021,22 +1132,30 @@ export default function PetaniClient({
         onConfirm={() => {
           if (deleteExpenseTarget) handleDeleteExpense(deleteExpenseTarget.id);
         }}
-        onCancel={() => setDeleteExpenseTarget(null)}
+        onCancel={() => {
+          if (!loading) setDeleteExpenseTarget(null);
+        }}
       />
 
-      {/* Dialog Konfirmasi Hapus Panen */}
+      {/* Dialog Konfirmasi Hapus / Arsip Panen */}
       <ConfirmDialog
         isOpen={!!deleteTarget}
-        title="Hapus Hasil Panen?"
-        description={`Komoditas "${deleteTarget?.name}" akan dihapus dari daftar panen Anda secara permanen.`}
-        confirmText="Hapus Panen"
+        title={deleteTarget?.hasOrders ? "Arsipkan Hasil Panen?" : "Hapus Hasil Panen?"}
+        description={
+          deleteTarget?.hasOrders
+            ? `Komoditas "${deleteTarget?.name}" sudah memiliki riwayat transaksi penjualan. Demi menjaga integritas pembukuan dan omzet, data panen ini akan diarsipkan (stok dikosongkan) dan tidak dihapus permanen.`
+            : `Komoditas "${deleteTarget?.name}" belum memiliki transaksi dan akan dihapus secara permanen dari daftar panen Anda.`
+        }
+        confirmText={deleteTarget?.hasOrders ? "Arsipkan Panen" : "Hapus Permanen"}
         cancelText="Batal"
-        isDanger
+        isDanger={!deleteTarget?.hasOrders}
         isLoading={loading}
         onConfirm={() => {
           if (deleteTarget) handleDelete(deleteTarget.id);
         }}
-        onCancel={() => setDeleteTarget(null)}
+        onCancel={() => {
+          if (!loading) setDeleteTarget(null);
+        }}
       />
 
       {/* Dialog Konfirmasi Tandai Panen Selesai / Habis */}
@@ -1050,7 +1169,9 @@ export default function PetaniClient({
         onConfirm={() => {
           if (finishTarget) handleFinish(finishTarget.id);
         }}
-        onCancel={() => setFinishTarget(null)}
+        onCancel={() => {
+          if (!loading) setFinishTarget(null);
+        }}
       />
 
       {/* Modal Edit Panen */}

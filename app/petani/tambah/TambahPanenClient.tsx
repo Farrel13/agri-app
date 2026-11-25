@@ -143,6 +143,7 @@ export default function TambahPanenClient() {
               <input
                 type="number"
                 name="costFarmer"
+                required
                 min="0"
                 placeholder="cth: 10000 (bibit/pupuk)"
                 className="w-full border border-gray-300 rounded-md p-2 text-xs outline-none focus:border-emerald-500 text-gray-900 bg-white"
@@ -157,6 +158,7 @@ export default function TambahPanenClient() {
             <input
               type="file"
               name="image"
+              required
               accept="image/*"
               onChange={handleImageChange}
               disabled={compressing}
