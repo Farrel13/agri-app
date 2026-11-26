@@ -365,8 +365,7 @@ export default function ChatBot() {
               rows={1}
               maxLength={1000}
               disabled={isLoading}
-              className="flex-1 resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 max-h-24 overflow-auto"
-              style={{ minHeight: "38px" }}
+              className="flex-1 resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 max-h-24 min-h-[38px] overflow-auto"
             />
             <button
               type="submit"

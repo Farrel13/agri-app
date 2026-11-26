@@ -37,10 +37,6 @@ const securityHeaders = [
     key: "Access-Control-Allow-Origin",
     value: "https://agri-app-tawny.vercel.app",
   },
-  {
-    key: "Content-Security-Policy",
-    value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.vercel.app; font-src 'self' data:; connect-src 'self' https://*.vercel.app; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;",
-  },
 ];
 
 const nextConfig: NextConfig = {

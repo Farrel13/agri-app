@@ -2,8 +2,16 @@ import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// Helper untuk menyusun CSP Header dinamis berbasis nonce kriptografi
+const getCspValue = (nonce?: string) => {
+  if (nonce) {
+    return `default-src 'self'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic'; style-src 'self' 'nonce-${nonce}'; img-src 'self' data: blob: https://*.vercel.app; font-src 'self' data:; connect-src 'self' https://*.vercel.app; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;`;
+  }
+  return `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://*.vercel.app; font-src 'self' data:; connect-src 'self' https://*.vercel.app; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;`;
+};
+
 // Helper terpusat untuk menginjeksi seluruh security headers pada setiap respons (termasuk error, redirect, dan API)
-const applySecurityHeaders = (res: NextResponse) => {
+const applySecurityHeaders = (res: NextResponse, nonce?: string) => {
   res.headers.set("X-DNS-Prefetch-Control", "on");
   res.headers.set(
     "Strict-Transport-Security",
@@ -18,10 +26,7 @@ const applySecurityHeaders = (res: NextResponse) => {
   );
   res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
   res.headers.set("Cross-Origin-Resource-Policy", "same-origin");
-  res.headers.set(
-    "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.vercel.app; font-src 'self' data:; connect-src 'self' https://*.vercel.app; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;"
-  );
+  res.headers.set("Content-Security-Policy", getCspValue(nonce));
   return res;
 };
 
@@ -57,6 +62,7 @@ function checkLoginEdgeRateLimit(
 }
 
 export async function middleware(req: NextRequest) {
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const url = req.nextUrl.pathname;
 
   // Helper untuk mencocokkan route prefix dengan batas segmen '/' yang valid
@@ -72,7 +78,7 @@ export async function middleware(req: NextRequest) {
     );
     res.headers.set("Pragma", "no-cache");
     res.headers.set("Expires", "0");
-    return applySecurityHeaders(res);
+    return applySecurityHeaders(res, nonce);
   };
 
   // Helper untuk respons blokir WAF dengan status error dan security headers lengkap
@@ -81,7 +87,7 @@ export async function middleware(req: NextRequest) {
       status,
       headers: { "Content-Type": "application/json" },
     });
-    return applySecurityHeaders(res);
+    return applySecurityHeaders(res, nonce);
   };
 
   // Validasi CORS & Isolasi Domain: Mencegah domain pihak ketiga sembarang membaca respons API
@@ -96,7 +102,7 @@ export async function middleware(req: NextRequest) {
 
   if (req.method === "OPTIONS") {
     if (!isAllowedOrigin) {
-      return applySecurityHeaders(new NextResponse(null, { status: 403 }));
+      return applySecurityHeaders(new NextResponse(null, { status: 403 }), nonce);
     }
     const preflightRes = new NextResponse(null, { status: 204 });
     preflightRes.headers.set("Access-Control-Allow-Origin", origin || "");
@@ -110,7 +116,7 @@ export async function middleware(req: NextRequest) {
     );
     preflightRes.headers.set("Access-Control-Allow-Credentials", "true");
     preflightRes.headers.set("Vary", "Origin");
-    return applySecurityHeaders(preflightRes);
+    return applySecurityHeaders(preflightRes, nonce);
   }
 
   // Helper untuk mencatat WAF event asinkron
@@ -172,7 +178,7 @@ export async function middleware(req: NextRequest) {
           },
         }
       );
-      return applySecurityHeaders(rateLimitRes);
+      return applySecurityHeaders(rateLimitRes, nonce);
     }
   }
 
@@ -320,12 +326,22 @@ export async function middleware(req: NextRequest) {
   }
 
   // Teruskan request yang terotorisasi secara normal dengan seluruh security headers
-  const res = NextResponse.next();
+  const csp = getCspValue(nonce);
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  const res = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
   if (origin && isAllowedOrigin) {
     res.headers.set("Access-Control-Allow-Origin", origin);
     res.headers.set("Vary", "Origin");
   }
-  return applySecurityHeaders(res);
+  return applySecurityHeaders(res, nonce);
 }
 
 export const config = {
