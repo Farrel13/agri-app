@@ -30,7 +30,7 @@ export const options = {
   },
 };
 
-export default function () {
+export default function stressTestApi() {
   const params = {
     headers: {
       'User-Agent': 'k6-load-test/1.0',

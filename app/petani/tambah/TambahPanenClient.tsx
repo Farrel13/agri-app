@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { addProductAction } from "../actions";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -169,10 +170,12 @@ export default function TambahPanenClient() {
             )}
             {previewUrl && !compressing && (
               <div className="mt-2 relative rounded overflow-hidden border border-gray-200 w-full h-36">
-                <img
+                <Image
                   src={previewUrl}
                   alt="Preview"
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  unoptimized
                 />
                 <button
                   type="button"

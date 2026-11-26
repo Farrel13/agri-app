@@ -56,7 +56,7 @@ async function main() {
   });
 
   // Buat User Super Admin
-  const admin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: "admin@test.com" },
     update: {
       password: hashedPassword,

@@ -143,7 +143,7 @@ export async function dispatchOrderAction(formData: FormData) {
     await prisma.notification.create({
       data: {
         userId: order.buyerId,
-        title: `Pesanan #${order.orderNumber} Sedang Diantar 🚚`,
+        title: `Pesanan #${order.orderNumber} Sedang Diantar `,
         message: `Bahan pesananmu sedang dikirim oleh ${courierName} (Plat: ${vehicleNumber}). Estimasi tiba: ${estimatedArrival}.`,
         type: "STATUS_PESANAN",
         linkUrl: "/restoran/pesanan",
@@ -205,7 +205,7 @@ export async function verifyOrderPaymentAction(orderId: string) {
     await prisma.notification.create({
       data: {
         userId: order.buyerId,
-        title: "Pembayaran Diverifikasi Lunas 💰",
+        title: "Pembayaran Diverifikasi Lunas ",
         message: `Pembayaran pesanan #${order.orderNumber} telah diverifikasi oleh Toko Hub dan kini sedang dipersiapkan.`,
         type: "STATUS_PESANAN",
         linkUrl: "/restoran/pesanan",

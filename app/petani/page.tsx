@@ -63,43 +63,14 @@ export default async function DashboardPetani() {
     }),
   ]);
 
-  // Hitung ringkasan finansial dan penjualan
-  let totalRevenue = 0;
-  let totalAutoCost = 0;
-  let totalSoldUnits = 0;
-  let verifiedCount = 0;
-
-  const incomeEvents: Array<{
-    id: string;
-    orderNumber: string;
-    productName: string;
-    quantity: number;
-    unit: string;
-    pricePerUnit: number;
-    costPerUnit: number;
-    revenue: number;
-    costAuto: number;
-    net: number;
-    date: Date;
-  }> = [];
-
-  const products = rawProducts.map((p) => {
-    if (p.isVerified) verifiedCount++;
-
-    let productSoldQty = 0;
-    let productEarned = 0;
-    let productAutoCost = 0;
-
-    for (const item of p.orderItems) {
-      if (item.order && item.order.status !== "DIBATALKAN") {
+  // 1. Kumpulkan riwayat pemasukan secara murni tanpa mutasi
+  const incomeEvents = rawProducts.flatMap((p) =>
+    p.orderItems
+      .filter((item) => item.order && item.order.status !== "DIBATALKAN")
+      .map((item) => {
         const itemRevenue = item.quantity * p.priceFarmer;
         const itemCost = item.quantity * (p.costFarmer || 0);
-
-        productSoldQty += item.quantity;
-        productEarned += itemRevenue;
-        productAutoCost += itemCost;
-
-        incomeEvents.push({
+        return {
           id: item.id,
           orderNumber: item.order.orderNumber,
           productName: p.name,
@@ -111,13 +82,21 @@ export default async function DashboardPetani() {
           costAuto: itemCost,
           net: itemRevenue - itemCost,
           date: item.order.createdAt,
-        });
-      }
-    }
+        };
+      })
+  );
 
-    totalSoldUnits += productSoldQty;
-    totalRevenue += productEarned;
-    totalAutoCost += productAutoCost;
+  // Urutkan riwayat pemasukan dari yang paling baru
+  const sortedIncomeEvents = [...incomeEvents].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  // 2. Olah daftar produk secara murni
+  const products = rawProducts.map((p) => {
+    const validItems = p.orderItems.filter(
+      (item) => item.order && item.order.status !== "DIBATALKAN"
+    );
+    const productSoldQty = validItems.reduce((sum, item) => sum + item.quantity, 0);
+    const productEarned = productSoldQty * p.priceFarmer;
+    const productAutoCost = productSoldQty * (p.costFarmer || 0);
 
     const avgRating =
       p.reviews.length > 0
@@ -134,8 +113,11 @@ export default async function DashboardPetani() {
     };
   });
 
-  // Urutkan riwayat pemasukan dari yang paling baru
-  incomeEvents.sort((a, b) => b.date.getTime() - a.date.getTime());
+  // 3. Hitung ringkasan finansial dan penjualan dengan agregasi murni
+  const verifiedCount = products.filter((p) => p.isVerified).length;
+  const totalSoldUnits = products.reduce((sum, p) => sum + p.soldQuantity, 0);
+  const totalRevenue = products.reduce((sum, p) => sum + p.totalEarned, 0);
+  const totalAutoCost = products.reduce((sum, p) => sum + p.totalCost, 0);
 
   // Hitung total pengeluaran manual (Opsi B)
   const totalManualExpense = rawExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -164,7 +146,7 @@ export default async function DashboardPetani() {
     date: e.date.toISOString(),
   }));
 
-  const serializedIncomeEvents = incomeEvents.map((it) => ({
+  const serializedIncomeEvents = sortedIncomeEvents.map((it) => ({
     ...it,
     date: it.date.toISOString(),
   }));

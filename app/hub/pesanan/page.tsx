@@ -40,11 +40,7 @@ export default async function HubPesananPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  // Hitung Laba Rugi / Margin Hub
-  let totalRevenue = 0; // Total uang penjualan bahan
-  let totalFarmerCost = 0; // Modal yang harus diserahkan ke petani
-  let completedOrdersCount = 0;
-
+  // Hitung Laba Rugi / Margin per pesanan
   const orders = rawOrders.map((ord) => {
     let orderCost = 0;
     let orderRevenue = 0;
@@ -56,19 +52,6 @@ export default async function HubPesananPage() {
 
     const orderProfit = orderRevenue - orderCost;
 
-    const isCounted =
-      ord.status !== "DIBATALKAN" &&
-      (ord.payment?.status === "LUNAS" || ["DIPROSES_HUB", "DIKIRIM", "SELESAI"].includes(ord.status));
-
-    if (isCounted) {
-      totalRevenue += orderRevenue;
-      totalFarmerCost += orderCost;
-    }
-
-    if (ord.status === "SELESAI") {
-      completedOrdersCount++;
-    }
-
     return {
       ...ord,
       orderCost,
@@ -76,17 +59,5 @@ export default async function HubPesananPage() {
     };
   });
 
-  const netProfit = totalRevenue - totalFarmerCost;
-  const profitMarginPercent = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-
-  const financialStats = {
-    totalOrders: orders.length,
-    completedOrdersCount,
-    totalRevenue,
-    totalFarmerCost,
-    netProfit,
-    profitMarginPercent: Math.round(profitMarginPercent * 10) / 10,
-  };
-
-  return <HubPesananClient initialOrders={orders} financialStats={financialStats} />;
+  return <HubPesananClient initialOrders={orders} />;
 }

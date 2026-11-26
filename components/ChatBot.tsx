@@ -97,30 +97,27 @@ export default function ChatBot() {
     }
   }, [messages, isOpen]);
 
+  const createWelcomeMessage = useCallback((): Message => ({
+    id: "welcome",
+    role: "assistant",
+    content: `Halo, **${userName}**! 👋\n\nSaya **Agri-AI**, asisten cerdas AgriApp. Saya bisa menjawab pertanyaan seputar data ${
+      userRole === "PETANI"
+        ? "panen, stok, dan penjualan Anda"
+        : userRole === "HUB"
+        ? "verifikasi panen, etalase, dan pesanan masuk"
+        : userRole === "RESTAURANT"
+        ? "produk tersedia, pesanan, dan status pengiriman"
+        : "statistik platform AgriApp"
+    }.\n\nAda yang bisa saya bantu?`,
+    timestamp: new Date(),
+  }), [userName, userRole]);
+
   // Focus input saat dibuka
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      // Tambahkan pesan selamat datang
-      const welcomeMsg: Message = {
-        id: "welcome",
-        role: "assistant",
-        content: `Halo, **${userName}**! 👋\n\nSaya **Agri-AI**, asisten cerdas AgriApp. Saya bisa menjawab pertanyaan seputar data ${
-          userRole === "PETANI"
-            ? "panen, stok, dan penjualan Anda"
-            : userRole === "HUB"
-            ? "verifikasi panen, etalase, dan pesanan masuk"
-            : userRole === "RESTAURANT"
-            ? "produk tersedia, pesanan, dan status pengiriman"
-            : "statistik platform AgriApp"
-        }.\n\nAda yang bisa saya bantu?`,
-        timestamp: new Date(),
-      };
-      setMessages([welcomeMsg]);
-    }
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -238,16 +235,21 @@ export default function ChatBot() {
     }
   };
 
+  const handleOpen = () => {
+    if (messages.length === 0) {
+      setMessages([createWelcomeMessage()]);
+    }
+    setIsOpen(true);
+  };
+
   const handleClose = () => {
     abortControllerRef.current?.abort();
     setIsOpen(false);
   };
 
   const clearChat = () => {
-    setMessages([]);
+    setMessages([createWelcomeMessage()]);
     setGeminiHistory([]);
-    setIsOpen(false);
-    setTimeout(() => setIsOpen(true), 50);
   };
 
   // Hanya tampil jika sudah login
@@ -257,7 +259,7 @@ export default function ChatBot() {
     <>
       {/* Floating Button */}
       <button
-        onClick={() => (isOpen ? handleClose() : setIsOpen(true))}
+        onClick={() => (isOpen ? handleClose() : handleOpen())}
         className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110"
         aria-label={isOpen ? "Tutup Agri-AI" : "Buka Agri-AI"}
         title="Agri-AI Assistant"

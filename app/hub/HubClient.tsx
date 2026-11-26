@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import { verifyProductAction, updateStoreProductAction, removeStoreProductAction } from "./actions";
 import { addExpenseAction, deleteExpenseAction } from "@/app/actions/expense";
 import { compressImage } from "@/lib/compressImage";
@@ -295,10 +296,10 @@ export default function HubClient({
 
   return (
     <div className="p-4 max-w-7xl mx-auto space-y-4 font-sans">
-      {/* Header Dashboard Hub */}
+      {/* Header Dashboard Hub & Navigasi Seksi */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-gray-200 pb-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
             Toko {hubUser.name} <span className="text-sm font-normal text-gray-500">(Hub Pedagang)</span>
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm mt-1">
@@ -307,12 +308,13 @@ export default function HubClient({
         </div>
 
         {/* Tab Navigasi Halaman */}
-        <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
+        <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-semibold shrink-0">
           <button
+            type="button"
             onClick={() => setActiveTab("VERIFIKASI")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
               activeTab === "VERIFIKASI"
-                ? "bg-white text-emerald-700 shadow-xs"
+                ? "bg-white text-emerald-800 font-bold shadow-2xs"
                 : "text-gray-600 hover:text-gray-900"
             }`}
           >
@@ -320,10 +322,11 @@ export default function HubClient({
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("ETALASE")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
               activeTab === "ETALASE"
-                ? "bg-white text-emerald-700 shadow-xs"
+                ? "bg-white text-emerald-800 font-bold shadow-2xs"
                 : "text-gray-600 hover:text-gray-900"
             }`}
           >
@@ -331,14 +334,15 @@ export default function HubClient({
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("KEUANGAN")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
               activeTab === "KEUANGAN"
-                ? "bg-white text-emerald-700 shadow-xs"
+                ? "bg-white text-emerald-800 font-bold shadow-2xs"
                 : "text-gray-600 hover:text-gray-900"
             }`}
           >
-             Laporan Keuangan
+            Laporan Keuangan
           </button>
         </div>
       </div>
@@ -405,10 +409,13 @@ export default function HubClient({
                       <tr key={item.id} className="hover:bg-gray-50">
                         <td className="py-2.5 px-3">
                           {valid ? (
-                            <img
+                            <Image
                               src={item.imageUrl!}
                               alt={item.name}
+                              width={48}
+                              height={48}
                               className="w-12 h-12 rounded object-cover border border-gray-200"
+                              unoptimized
                             />
                           ) : (
                             <div className="w-12 h-12 rounded bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 text-[10px] text-center p-1">
@@ -553,12 +560,15 @@ export default function HubClient({
                     <div className="relative h-40 w-full bg-gray-100">
                       {valid ? (
                         <>
-                          <img
+                          <Image
                             src={item.imageUrl!}
                             alt={item.name}
-                            className="w-full h-full object-cover"
+                            fill
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                            className="object-cover"
+                            unoptimized
                           />
-                          <div className="absolute top-2 left-2 bg-emerald-800/80 text-white text-[10px] font-medium px-2 py-0.5 rounded shadow-xs">
+                          <div className="absolute top-2 left-2 bg-emerald-800/80 text-white text-[10px] font-medium px-2 py-0.5 rounded shadow-xs z-10">
                             Etalase Harian Aktif
                           </div>
                         </>
@@ -633,17 +643,18 @@ export default function HubClient({
       {/* ========================================================= */}
       {activeTab === "KEUANGAN" && (
         <section className="space-y-6">
-          {/* Header Bar Keuangan */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-3.5 rounded-lg border border-gray-200 shadow-xs">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-gray-500 mr-1">Periode:</span>
+          {/* Toolbar periode & biaya dalam satu wadah horizontal */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-3.5 rounded-xl border border-gray-200 shadow-2xs">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-bold text-gray-500 mr-1">Periode:</span>
               {(["SEMUA", "BULAN_INI", "HARI_INI"] as const).map((filter) => (
                 <button
                   key={filter}
+                  type="button"
                   onClick={() => setTimeFilter(filter)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition cursor-pointer ${
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
                     timeFilter === filter
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-emerald-800 text-white shadow-2xs"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
@@ -653,22 +664,23 @@ export default function HubClient({
             </div>
 
             <button
+              type="button"
               onClick={() => setIsAddingExpense(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-md shadow-xs transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-semibold rounded-lg shadow-xs transition cursor-pointer"
             >
-              <span>+</span> Catat Biaya Operasional Toko
+              <span className="font-bold">+</span> Catat Biaya Operasional Toko
             </button>
           </div>
 
-          {/* 3 Kartu Ringkasan Keuangan Hub */}
+          {/* 3 Kartu Metrik Keuangan (1 -> 2 -> 3) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* 1. Total Omzet Restoran */}
-            <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-xs relative overflow-hidden">
+            {/* 1. TOTAL PENDAPATAN (OMZET) */}
+            <div className="bg-white p-5 rounded-xl border border-emerald-300 shadow-2xs relative overflow-hidden">
               <div className="flex justify-between items-start">
-                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-                  1. Total Pendapatan (Omzet)
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+                  1. TOTAL PENDAPATAN (OMZET)
                 </span>
-                <span className="text-emerald-600 text-base">🟢</span>
+                <span className="text-emerald-700 text-sm">🟢</span>
               </div>
               <p className="text-2xl font-black text-gray-900 mt-2">
                 Rp {filteredFinancialData.totalRevenue.toLocaleString("id-ID")}
@@ -678,45 +690,47 @@ export default function HubClient({
               </p>
             </div>
 
-            {/* 2. Total Pengeluaran */}
-            <div className="bg-white p-5 rounded-lg border border-rose-200 shadow-xs relative overflow-hidden">
+            {/* 2. TOTAL PENGELUARAN TOKO */}
+            <div className="bg-white p-5 rounded-xl border border-rose-200 shadow-2xs relative overflow-hidden">
               <div className="flex justify-between items-start">
-                <span className="text-xs font-semibold uppercase tracking-wider text-rose-700">
-                  2. Total Pengeluaran Toko
+                <span className="text-xs font-bold uppercase tracking-wider text-rose-700">
+                  2. TOTAL PENGELUARAN TOKO
                 </span>
-                <span className="text-rose-600 text-base">🔴</span>
+                <span className="text-rose-600 text-sm">🔴</span>
               </div>
               <p className="text-2xl font-black text-rose-600 mt-2">
                 Rp {filteredFinancialData.totalExpense.toLocaleString("id-ID")}
               </p>
-              <div className="text-xs text-gray-500 mt-1 flex flex-col gap-0.5">
+              <div className="text-xs text-gray-500 mt-1.5 flex flex-col gap-0.5">
                 <span>
-                  Beli dari Petani (HPP): Rp {filteredFinancialData.totalFarmerCost.toLocaleString("id-ID")}
+                  Beli dari Petani (HPP): <strong className="text-gray-700">Rp {filteredFinancialData.totalFarmerCost.toLocaleString("id-ID")}</strong>
                 </span>
                 <span>
-                  Operasional Toko: Rp {filteredFinancialData.totalManualExpense.toLocaleString("id-ID")}
+                  Operasional Toko: <strong className="text-gray-700">Rp {filteredFinancialData.totalManualExpense.toLocaleString("id-ID")}</strong>
                 </span>
               </div>
             </div>
 
-            {/* 3. Margin Keuntungan Bersih Hub */}
-            <div className="bg-white p-5 rounded-lg border-2 border-emerald-500 shadow-xs relative overflow-hidden bg-gradient-to-br from-white to-emerald-50/40">
+            {/* 3. UNTUNG BERSIH (MARGIN TOKO) */}
+            <div className="bg-gradient-to-br from-white to-emerald-50/50 p-5 rounded-xl border-2 border-emerald-800 shadow-xs relative overflow-hidden">
               <div className="flex justify-between items-start">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-                  3. Untung Bersih (Margin Toko)
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                  3. UNTUNG BERSIH (MARGIN TOKO)
                 </span>
-                <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                   Margin {filteredFinancialData.profitMarginPercent}%
                 </span>
               </div>
               <p
                 className={`text-2xl font-black mt-2 ${
-                  filteredFinancialData.netProfit >= 0 ? "text-emerald-700" : "text-rose-600"
+                  filteredFinancialData.netProfit >= 0 ? "text-emerald-800" : "text-rose-600"
                 }`}
               >
                 Rp {filteredFinancialData.netProfit.toLocaleString("id-ID")}
               </p>
-              <p className="text-xs text-gray-600 mt-1">Keuntungan bersih yang diperoleh Toko Hub</p>
+              <p className="text-xs text-emerald-700/80 font-medium mt-1">
+                Keuntungan bersih yang diperoleh Toko Hub
+              </p>
             </div>
           </div>
 
@@ -794,8 +808,9 @@ export default function HubClient({
                 <div className="text-center py-8 text-gray-400 text-xs">
                   Belum ada catatan biaya operasional toko. Klik{" "}
                   <button
+                    type="button"
                     onClick={() => setIsAddingExpense(true)}
-                    className="text-emerald-600 font-medium underline"
+                    className="text-emerald-800 font-bold underline cursor-pointer hover:text-emerald-900"
                   >
                     + Catat Biaya Operasional
                   </button>{" "}
@@ -1050,10 +1065,12 @@ export default function HubClient({
                 {compressing && <p className="text-[10px] text-gray-500 mt-1">Mengompres foto...</p>}
                 {editPreview && !compressing && (
                   <div className="mt-2 relative rounded overflow-hidden border border-gray-200 w-full h-24">
-                    <img
+                    <Image
                       src={editPreview}
                       alt="Preview Baru"
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
+                      unoptimized
                     />
                   </div>
                 )}

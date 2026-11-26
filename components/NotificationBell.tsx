@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   getUserNotifications,
   markNotificationAsRead,
@@ -25,7 +25,7 @@ export default function NotificationBell() {
   const popoverRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const fetchNotifs = async () => {
+  const fetchNotifs = useCallback(async () => {
     try {
       const res = await getUserNotifications();
       setNotifications(res.notifications);
@@ -33,12 +33,32 @@ export default function NotificationBell() {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchNotifs();
-    const interval = setInterval(fetchNotifs, 15000); // Polling berkala 15 detik
-    return () => clearInterval(interval);
+    let ignore = false;
+
+    const runFetch = async () => {
+      try {
+        const res = await getUserNotifications();
+        if (!ignore) {
+          setNotifications(res.notifications);
+          setUnreadCount(res.unreadCount);
+        }
+      } catch (e) {
+        if (!ignore) {
+          console.error(e);
+        }
+      }
+    };
+
+    runFetch();
+    const interval = setInterval(runFetch, 15000); // Polling berkala 15 detik
+
+    return () => {
+      ignore = true;
+      clearInterval(interval);
+    };
   }, []);
 
   const handleItemClick = async (notif: NotificationItem) => {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { placeOrderAction, CartItemInput } from "../../actions";
 
 interface Product {
@@ -34,8 +35,7 @@ export default function TokoClient({ hubUser, products }: TokoClientProps) {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const isImageValid = (imageUrl?: string | null, imageExpiresAt?: Date | string | null) => {
-    if (!imageUrl || !imageExpiresAt) return false;
-    return new Date(imageExpiresAt).getTime() > Date.now();
+    return Boolean(imageUrl && imageExpiresAt);
   };
 
   const filteredProducts = products.filter((p) => {
@@ -235,10 +235,12 @@ export default function TokoClient({ hubUser, products }: TokoClientProps) {
                       {/* Zona Gambar */}
                       <div className="h-48 relative bg-gray-100">
                         {validImage && item.imageUrl ? (
-                          <img
+                          <Image
                             src={item.imageUrl}
                             alt={item.name}
-                            className="w-full h-full object-cover"
+                            fill
+                            className="object-cover"
+                            unoptimized
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-50">

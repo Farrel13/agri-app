@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import {
   addProductAction,
   updateProductFarmerAction,
@@ -435,56 +436,73 @@ export default function PetaniClient({
       {/* ========================================================= */}
       {activeTab === "PANEN" && (
         <div className="space-y-6">
-          {/* Metrik Ringkas Panen */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-white p-4 rounded-md border border-gray-200">
-              <span className="text-xs font-medium text-gray-500 block">Total Panen Terdaftar</span>
+          {/* Baris 4 Metrik Utama (KPI) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-2xs">
+              <span className="text-xs font-semibold text-gray-500 block">Total Panen Terdaftar</span>
               <p className="text-xl font-bold text-gray-900 mt-1">{stats.totalProducts} Komoditas</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Seluruh hasil panen kebun</p>
             </div>
 
-            <div className="bg-white p-4 rounded-md border border-gray-200">
-              <span className="text-xs font-medium text-gray-500 block">Diverifikasi Toko Hub</span>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-2xs">
+              <span className="text-xs font-semibold text-gray-500 block">Diverifikasi Toko Hub</span>
               <p className="text-xl font-bold text-gray-900 mt-1">{stats.verifiedCount} Panen</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Siap didistribusi ke restoran</p>
             </div>
 
-            <div className="bg-white p-4 rounded-md border border-gray-200">
-              <span className="text-xs font-medium text-gray-500 block">Total Unit Terjual</span>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-2xs">
+              <span className="text-xs font-semibold text-gray-500 block">Total Unit Terjual</span>
               <p className="text-xl font-bold text-gray-900 mt-1">{stats.totalSoldUnits} Unit</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Telah terserap pasar</p>
             </div>
 
-            <div className="bg-white p-4 rounded-md border border-gray-200 border-l-4 border-l-emerald-500">
-              <span className="text-xs font-medium text-gray-500 block">Estimasi Omzet Penjualan</span>
-              <p className="text-xl font-bold text-emerald-600 mt-1">
+            <div className="bg-gradient-to-br from-white to-emerald-50/50 p-4 rounded-xl border-2 border-emerald-800 shadow-xs relative overflow-hidden">
+              <div className="flex justify-between items-start">
+                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wide block">
+                  Estimasi Omzet Penjualan
+                </span>
+                <span className="text-emerald-700 text-sm"></span>
+              </div>
+              <p className="text-2xl font-black text-emerald-800 mt-1">
                 Rp {stats.totalRevenue.toLocaleString("id-ID")}
+              </p>
+              <p className="text-[11px] text-emerald-700/80 font-medium mt-0.5">
+                Total bruto omzet dari Toko Hub
               </p>
             </div>
           </div>
 
-          {/* Grid: Form Tambah Panen & Daftar Hasil Panen */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Form Tambah Panen */}
-            <div className="bg-white p-4 rounded-md border border-gray-200 h-fit">
-              <h2 className="text-lg font-medium text-gray-900 mb-1">Tambah Hasil Panen</h2>
-              <p className="text-xs text-gray-500 mb-4">
-                Daftarkan hasil panen kebun untuk diverifikasi dan dibeli oleh Toko Hub.
-              </p>
+          {/* Konten Utama 2 Kolom (Form Kiri ~35-40%, Daftar Panen Kanan ~60-65%) */}
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
+            {/* Kiri — Tambah Hasil Panen (~38%) */}
+            <div className="w-full lg:w-[38%] bg-white p-5 rounded-2xl border border-gray-200 shadow-xs h-fit space-y-4">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Tambah Hasil Panen</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Daftarkan hasil panen kebun untuk diverifikasi dan dibeli oleh Toko Hub.
+                </p>
+              </div>
 
-              <form onSubmit={handleSubmit} className="space-y-3">
+              <form onSubmit={handleSubmit} className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Nama Komoditas</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Nama Komoditas
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="cth: Cabai Rawit Merah"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md p-2 outline-none focus:border-emerald-500 text-sm"
+                    className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800 text-sm transition"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Stok Panen</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Stok Panen
+                    </label>
                     <input
                       type="number"
                       required
@@ -492,16 +510,18 @@ export default function PetaniClient({
                       placeholder="100"
                       value={stock}
                       onChange={(e) => setStock(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md p-2 outline-none focus:border-emerald-500 text-sm"
+                      className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800 text-sm transition"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Satuan</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Satuan
+                    </label>
                     <select
                       value={unit}
                       onChange={(e) => setUnit(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md p-2 outline-none focus:border-emerald-500 bg-white text-sm"
+                      className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-emerald-800 bg-white text-sm transition cursor-pointer"
                     >
                       <option value="kg">kg (Kilogram)</option>
                       <option value="ton">ton</option>
@@ -513,7 +533,7 @@ export default function PetaniClient({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
                       Harga Jual (Rp / {unit})
                     </label>
                     <input
@@ -523,13 +543,13 @@ export default function PetaniClient({
                       placeholder="25000"
                       value={priceFarmer}
                       onChange={(e) => setPriceFarmer(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md p-2 outline-none focus:border-emerald-500 text-sm"
+                      className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800 text-sm transition"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Modal Tani (Rp) <span className="text-gray-400 font-normal">(Opsi A)</span>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Modal Tani (Rp)
                     </label>
                     <input
                       type="number"
@@ -539,26 +559,37 @@ export default function PetaniClient({
                       value={costFarmer}
                       onChange={(e) => setCostFarmer(e.target.value)}
                       title="Estimasi modal bibit & pupuk per satuan (opsional)"
-                      className="w-full border border-gray-300 rounded-md p-2 outline-none focus:border-emerald-500 text-sm"
+                      className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800 text-sm transition"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Foto Hasil Panen (Bukti Kondisi Fisik)
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Foto Hasil Panen
                   </label>
                   <input
                     type="file"
                     required
                     accept="image/jpeg,image/png,image/webp"
                     onChange={handleImageChange}
-                    className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
+                    className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
                   />
+                  {selectedImage && (
+                    <p className="text-[11px] text-emerald-800 font-medium mt-1 truncate">
+                      File terpilih: {selectedImage.name}
+                    </p>
+                  )}
                   {compressing && <p className="text-xs text-gray-500 mt-1">Mengompresi foto...</p>}
                   {previewUrl && (
-                    <div className="mt-3 relative w-full h-32 rounded-md overflow-hidden border border-gray-200">
-                      <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                    <div className="mt-3 relative w-full h-32 rounded-lg overflow-hidden border border-gray-200">
+                      <Image
+                        src={previewUrl}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
                     </div>
                   )}
                 </div>
@@ -566,31 +597,31 @@ export default function PetaniClient({
                 <button
                   type="submit"
                   disabled={loading || compressing}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 rounded-md transition disabled:opacity-50 text-sm cursor-pointer"
+                  className="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold py-2.5 rounded-lg transition-colors shadow-xs disabled:opacity-50 text-sm cursor-pointer mt-2"
                 >
                   {loading ? "Menyimpan Panen..." : "Daftarkan Panen"}
                 </button>
               </form>
             </div>
 
-            {/* Daftar Panen Milik Petani */}
-            <div className="lg:col-span-2 space-y-3">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            {/* Kanan — Koleksi Panen Saya (~62%) */}
+            <div className="w-full lg:w-[62%] space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-100 pb-3">
                 <div>
-                  <h2 className="text-lg font-medium text-gray-900">
+                  <h2 className="text-base font-bold text-gray-900">
                     Koleksi Panen Saya ({products.length})
                   </h2>
                   <span className="text-xs text-gray-500">Status verifikasi dan stok komoditas</span>
                 </div>
 
                 {/* Filter Tab Panen */}
-                <div className="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
+                <div className="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs font-semibold">
                   <button
                     type="button"
                     onClick={() => setHarvestFilter("SEMUA")}
-                    className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-md transition cursor-pointer ${
                       harvestFilter === "SEMUA"
-                        ? "bg-white text-emerald-700 shadow-xs"
+                        ? "bg-white text-emerald-800 font-bold shadow-2xs"
                         : "text-gray-600 hover:text-gray-900"
                     }`}
                   >
@@ -599,9 +630,9 @@ export default function PetaniClient({
                   <button
                     type="button"
                     onClick={() => setHarvestFilter("AKTIF")}
-                    className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-md transition cursor-pointer ${
                       harvestFilter === "AKTIF"
-                        ? "bg-white text-emerald-700 shadow-xs"
+                        ? "bg-white text-emerald-800 font-bold shadow-2xs"
                         : "text-gray-600 hover:text-gray-900"
                     }`}
                   >
@@ -610,9 +641,9 @@ export default function PetaniClient({
                   <button
                     type="button"
                     onClick={() => setHarvestFilter("HABIS")}
-                    className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-md transition cursor-pointer ${
                       harvestFilter === "HABIS"
-                        ? "bg-white text-emerald-700 shadow-xs"
+                        ? "bg-white text-emerald-800 font-bold shadow-2xs"
                         : "text-gray-600 hover:text-gray-900"
                     }`}
                   >
@@ -622,8 +653,8 @@ export default function PetaniClient({
               </div>
 
               {filteredProducts.length === 0 ? (
-                <div className="bg-white p-6 rounded-md border border-gray-200 text-center">
-                  <p className="font-medium text-gray-700 text-sm">
+                <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center">
+                  <p className="font-semibold text-gray-800 text-sm">
                     {harvestFilter === "AKTIF"
                       ? "Tidak ada komoditas aktif dengan stok tersedia."
                       : harvestFilter === "HABIS"
@@ -637,50 +668,54 @@ export default function PetaniClient({
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {filteredProducts.map((item) => {
                     const imgValid = isImageValid(item);
                     return (
                       <div
                         key={item.id}
-                        className="bg-white rounded-md border border-gray-200 overflow-hidden flex flex-col justify-between"
+                        className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col justify-between shadow-2xs hover:shadow-sm transition"
                       >
                         <div>
                           {/* Foto */}
                           <div className="relative h-44 w-full bg-gray-100 overflow-hidden">
                             {imgValid && item.imageUrl ? (
-                              <img
+                              <Image
                                 src={item.imageUrl}
                                 alt={item.name}
-                                className="w-full h-full object-cover"
+                                fill
+                                sizes="(max-width: 768px) 100vw, 50vw"
+                                className="object-cover"
+                                unoptimized
                               />
                             ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 text-xs">
-                                <span>Tanpa Foto</span>
+                              <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 text-xs bg-gray-50">
+                                <span className="text-2xl mb-1"></span>
+                                <span>Belum ada foto</span>
                               </div>
                             )}
 
-                            {/* Badge Verifikasi Hub */}
-                            <div className="absolute top-3 left-3">
+                            {/* Badge Status Verifikasi */}
+                            <div className="absolute top-2.5 left-2.5 z-10">
                               {item.isVerified ? (
-                                <span className="bg-emerald-600 text-white text-[10px] font-medium px-2 py-0.5 rounded shadow-xs">
+                                <span className="bg-emerald-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-2xs">
                                   Diverifikasi Hub
                                 </span>
                               ) : (
-                                <span className="bg-gray-700/85 text-white text-[10px] font-medium px-2 py-0.5 rounded shadow-xs">
+                                <span className="bg-gray-800/80 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded-full shadow-2xs">
                                   Menunggu Verifikasi
                                 </span>
                               )}
                             </div>
 
                             {/* Badge Status Stok */}
-                            <div className="absolute top-3 right-3">
+                            <div className="absolute top-2.5 right-2.5 z-10">
                               {item.stock > 0 ? (
-                                <span className="bg-emerald-700/90 text-white text-[10px] font-semibold px-2 py-0.5 rounded shadow-xs">
+                                <span className="bg-emerald-700 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-2xs">
                                   Stok Tersedia
                                 </span>
                               ) : (
-                                <span className="bg-rose-700/90 text-white text-[10px] font-semibold px-2 py-0.5 rounded shadow-xs">
+                                <span className="bg-rose-700 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-2xs">
                                   Panen Habis
                                 </span>
                               )}
@@ -688,73 +723,75 @@ export default function PetaniClient({
                           </div>
 
                           {/* Detail Panen */}
-                          <div className="p-4 space-y-2">
-                            <div className="flex justify-between items-start">
-                              <h3 className="font-medium text-gray-900 text-sm">{item.name}</h3>
-                              <span className="text-xs font-medium text-emerald-600 bg-white border border-gray-200 px-2 py-1 rounded">
+                          <div className="p-4 space-y-2.5">
+                            <div className="flex justify-between items-start gap-2">
+                              <h3 className="font-bold text-gray-900 text-sm line-clamp-1">{item.name}</h3>
+                              <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded shrink-0">
                                 Rp {item.priceFarmer.toLocaleString("id-ID")}/{item.unit}
                               </span>
                             </div>
 
-                            <div className="text-xs text-gray-600 space-y-1">
-                              <p>
-                                Sisa Stok:{" "}
+                            <div className="text-xs text-gray-600 space-y-1 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Sisa Stok:</span>
                                 <strong
                                   className={
                                     item.stock > 0
-                                      ? "text-emerald-700 font-semibold"
-                                      : "text-rose-600 font-semibold"
+                                      ? "text-emerald-800 font-bold"
+                                      : "text-rose-600 font-bold"
                                   }
                                 >
                                   {item.stock} {item.unit} {item.stock === 0 ? "(Habis)" : ""}
                                 </strong>
-                              </p>
+                              </div>
                               {item.costFarmer ? (
-                                <p className="text-gray-500">
-                                  Modal Bibit:{" "}
-                                  <span className="text-gray-700">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Modal Bibit:</span>
+                                  <span className="text-gray-700 font-medium">
                                     Rp {item.costFarmer.toLocaleString("id-ID")}/{item.unit}
                                   </span>
-                                </p>
+                                </div>
                               ) : null}
-                              <p>
-                                Terjual:{" "}
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Terjual:</span>
                                 <strong className="text-gray-800">
                                   {item.soldQuantity || 0} {item.unit}
-                                </strong>{" "}
-                                (Rp {(item.totalEarned || 0).toLocaleString("id-ID")})
-                              </p>
+                                </strong>
+                              </div>
                               {item.verifiedBy && (
-                                <p className="text-xs text-gray-600 border border-gray-200 p-1.5 rounded">
+                                <div className="pt-1 border-t border-gray-200/60 text-[11px] text-gray-600">
                                   Diambil Toko Hub: <strong>{item.verifiedBy.name}</strong>
-                                </p>
+                                </div>
                               )}
                             </div>
                           </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="p-4 pt-0 border-t border-gray-100 mt-2 flex items-center gap-2">
+                        {/* Action Buttons: 3 Tombol Aksi (Edit Panen, Tandai Habis, Hapus) */}
+                        <div className="p-3.5 pt-0 border-t border-gray-100 mt-2 flex items-center gap-1.5">
                           <button
+                            type="button"
                             onClick={() => {
                               setEditingProduct(item);
                               setEditImage(null);
                               setEditPreview(null);
                             }}
-                            className="flex-1 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition cursor-pointer"
+                            className="flex-1 py-1.5 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition cursor-pointer text-center"
                           >
                             Edit Panen
                           </button>
                           {item.stock > 0 && (
                             <button
+                              type="button"
                               onClick={() => setFinishTarget({ id: item.id, name: item.name })}
-                              className="py-1.5 px-2.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition cursor-pointer"
+                              className="py-1.5 px-2.5 text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition cursor-pointer"
                               title="Tandai panen selesai / stok habis"
                             >
                               Tandai Habis
                             </button>
                           )}
                           <button
+                            type="button"
                             onClick={() =>
                               setDeleteTarget({
                                 id: item.id,
@@ -765,12 +802,8 @@ export default function PetaniClient({
                                 ),
                               })
                             }
-                            className="py-1.5 px-3 text-xs font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 rounded-md transition cursor-pointer"
-                            title={
-                              Boolean((item.soldQuantity && item.soldQuantity > 0) || (item.totalEarned && item.totalEarned > 0))
-                                ? "Arsipkan panen yang memiliki riwayat pesanan"
-                                : "Hapus panen secara permanen"
-                            }
+                            className="py-1.5 px-2.5 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-lg transition cursor-pointer"
+                            title="Hapus data panen"
                           >
                             Hapus
                           </button>
@@ -1267,8 +1300,8 @@ export default function PetaniClient({
                   className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 cursor-pointer"
                 />
                 {editPreview && (
-                  <div className="mt-2 h-28 w-full rounded-md overflow-hidden border border-gray-200">
-                    <img src={editPreview} alt="Preview baru" className="w-full h-full object-cover" />
+                  <div className="mt-2 h-28 w-full relative rounded-md overflow-hidden border border-gray-200">
+                    <Image src={editPreview} alt="Preview baru" fill className="object-cover" unoptimized />
                   </div>
                 )}
               </div>

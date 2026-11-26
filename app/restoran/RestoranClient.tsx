@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { placeOrderAction, addRestaurantAddressAction } from "./actions";
 
 interface Address {
@@ -76,7 +77,9 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
         const validCart = parsed.filter((ci) =>
           products.some((p) => p.id === ci.product.id)
         );
-        setCart(validCart);
+        queueMicrotask(() => {
+          setCart(validCart);
+        });
       }
     } catch (e) {
       console.error("Gagal membaca cart dari localStorage", e);
@@ -273,14 +276,14 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
           </Link>
         </div>
 
-        {/* Konten Utama: Katalog + Sidebar Keranjang */}
-        <div className="flex gap-6 items-start">
-          {/* Kolom Kiri: Pencarian + Grid Produk */}
-          <div className="flex-1 min-w-0">
+        {/* Konten Utama: 2 Kolom (Katalog Kiri ~70%, Keranjang Kanan ~30%) */}
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          {/* Kolom Kiri: Pencarian + Grid Produk (~70%) */}
+          <div className="w-full lg:w-[70%] min-w-0">
             {/* Search Bar */}
-            <div className="relative">
+            <div className="relative mb-4">
               <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -297,13 +300,13 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
                 placeholder="Cari nama bahan, toko hub, atau petani..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm w-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 transition"
+                className="pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm w-full focus:outline-none focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 shadow-2xs transition"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600 text-sm"
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600 text-sm cursor-pointer"
                 >
                   ✕
                 </button>
@@ -312,110 +315,113 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
 
             {/* Grid Produk */}
             {filteredProducts.length === 0 ? (
-              <div className="mt-4 py-16 text-center">
+              <div className="py-16 text-center bg-white rounded-2xl border border-gray-100 p-8">
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
-                <p className="font-semibold text-gray-700">Bahan tidak ditemukan</p>
-                <p className="text-gray-400 text-sm mt-1">Coba ubah kata kunci pencarian</p>
+                <p className="font-semibold text-gray-800">Bahan tidak ditemukan</p>
+                <p className="text-gray-400 text-xs mt-1">Coba gunakan kata kunci lain atau periksa filter</p>
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="mt-4 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                    className="mt-4 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold transition cursor-pointer"
                   >
                     Reset Pencarian
                   </button>
                 )}
               </div>
             ) : (
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredProducts.map((p) => {
                   const imgValid = isImageValid(p.imageUrl);
                   return (
                     <div
                       key={p.id}
-                      className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col"
+                      className="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between"
                     >
                       {/* Zona Gambar */}
-                      <div className="h-48 relative bg-gray-100">
+                      <div className="h-44 relative bg-gray-100 overflow-hidden">
                         {imgValid && p.imageUrl ? (
-                          <img
+                          <Image
                             src={p.imageUrl}
                             alt={p.name}
-                            className="w-full h-full object-cover"
+                            fill
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                            className="object-cover"
+                            unoptimized
                           />
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-50">
-                            <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <span className="text-gray-400 text-xs">Belum ada foto</span>
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-emerald-50/50 to-gray-50 text-gray-400">
+                            <span className="text-2xl">🌱</span>
+                            <span className="text-[11px] font-medium text-gray-500">Belum ada foto</span>
                           </div>
                         )}
 
                         {/* Badge foto segar (overlay kiri atas) */}
                         {imgValid && (
-                          <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">
+                          <span className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] px-2 py-0.5 rounded-full font-medium z-10">
                             Foto Segar
                           </span>
                         )}
 
-                        {/* Badge nama Hub (overlay kanan atas) */}
-                        {p.verifiedBy?.name && (
-                          <span className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full">
-                            {p.verifiedBy.name}
-                          </span>
-                        )}
+                        {/* Badge lokasi Hub (overlay kanan atas) */}
+                        <span className="absolute top-2.5 right-2.5 bg-emerald-800/90 backdrop-blur-xs text-white text-[10px] px-2 py-0.5 rounded-full font-semibold shadow-2xs z-10">
+                          {p.verifiedBy?.name ? `Sentra Hub ${p.verifiedBy.name}` : "Mitra Hub Mitra"}
+                        </span>
                       </div>
 
                       {/* Body Kartu */}
-                      <div className="p-4 flex flex-col flex-1">
-                        <h3 className="font-semibold text-gray-900 text-sm leading-snug">
-                          {p.name}
-                        </h3>
+                      <div className="p-4 flex flex-col flex-1 justify-between space-y-2">
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-1">
+                            {p.name}
+                          </h3>
 
-                        {/* Baris Rating */}
-                        <div className="flex items-center gap-1 mt-1">
-                          <span className="text-amber-400 text-xs">★</span>
-                          <span className="text-xs text-gray-700">
-                            {p.averageRating ? p.averageRating.toFixed(1) : "Baru"}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            ({p.reviewCount || 0} ulasan)
-                          </span>
+                          {/* Baris Rating & Ulasan */}
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="text-amber-500 text-xs">★</span>
+                            <span className="text-xs font-semibold text-gray-800">
+                              {p.averageRating ? p.averageRating.toFixed(1) : "Baru"}
+                            </span>
+                            <span className="text-[11px] text-gray-400">
+                              ({p.reviewCount || 0} ulasan)
+                            </span>
+                          </div>
+
+                          {/* Baris Harga Tebal & Hijau Tua */}
+                          <div className="mt-2.5 flex items-baseline gap-1">
+                            <span className="text-lg font-extrabold text-emerald-800">
+                              Rp {(p.priceHub || 0).toLocaleString("id-ID")}
+                            </span>
+                            <span className="text-xs font-medium text-gray-500">/ {p.unit}</span>
+                          </div>
+
+                          {/* Meta: Nama Petani & Sisa Stok */}
+                          <div className="mt-1.5 flex justify-between items-center text-xs text-gray-500 border-t border-gray-100 pt-2">
+                            <span className="truncate max-w-[130px]" title={p.user?.name || "Petani"}>
+                              Petani: <strong className="text-gray-700">{p.user?.name || "Petani"}</strong>
+                            </span>
+                            <span className="shrink-0 bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[11px] font-semibold">
+                              Stok: {p.stock} {p.unit}
+                            </span>
+                          </div>
+
+                          {/* Deskripsi Singkat */}
+                          {p.description && (
+                            <p className="mt-2 text-xs text-gray-500 line-clamp-2 leading-relaxed">
+                              {p.description}
+                            </p>
+                          )}
                         </div>
 
-                        {/* Baris Harga */}
-                        <div className="mt-2 flex items-baseline gap-1">
-                          <span className="text-lg font-bold text-emerald-600">
-                            Rp {(p.priceHub || 0).toLocaleString("id-ID")}
-                          </span>
-                          <span className="text-xs text-gray-400">/ {p.unit}</span>
-                        </div>
-
-                        {/* Meta: Petani & Stok */}
-                        <div className="mt-2 flex justify-between text-xs text-gray-400">
-                          <span>Petani: {p.user?.name || "Mitra Tani"}</span>
-                          <span>Stok: {p.stock} {p.unit}</span>
-                        </div>
-
-                        {/* Deskripsi singkat */}
-                        {p.description && (
-                          <p className="mt-2 text-xs text-gray-500 line-clamp-2">
-                            {p.description}
-                          </p>
-                        )}
-
-                        {/* Spacer */}
-                        <div className="flex-1" />
-
-                        {/* Tombol Tambah ke Keranjang */}
+                        {/* Tombol Penuh: + Tambah ke Keranjang (Hijau Daun Tua) */}
                         <button
+                          type="button"
                           onClick={() => addToCart(p)}
-                          className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold transition bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                          className="w-full py-2.5 rounded-xl text-xs font-bold transition bg-emerald-800 hover:bg-emerald-900 text-white cursor-pointer shadow-xs active:scale-[0.99] mt-3"
                         >
                           + Tambah ke Keranjang
                         </button>
@@ -427,21 +433,30 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
             )}
           </div>
 
-          {/* Kolom Kanan: Keranjang (sticky, hanya tampil di lg ke atas) */}
-          <div className="w-80 shrink-0 sticky top-20 hidden lg:block">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          {/* Kolom Kanan: Panel Keranjang (~30%, sticky di lg) */}
+          <div className="w-full lg:w-[30%] shrink-0 sticky top-20">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
               {/* Header Keranjang */}
-              <div className="flex justify-between items-center">
-                <span className="font-semibold text-gray-900">Keranjang</span>
-                <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🛒</span>
+                  <span className="font-bold text-gray-900 text-sm">Keranjang Pesanan</span>
+                </div>
+                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
                   {cart.length} item
                 </span>
               </div>
 
               {/* Keranjang Kosong */}
               {cart.length === 0 ? (
-                <div className="py-8 text-center text-gray-400 text-sm">
-                  Belum ada item di keranjang.
+                <div className="py-10 text-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mx-auto text-gray-400 text-lg">
+                    🧺
+                  </div>
+                  <p className="text-xs font-semibold text-gray-700">Belum ada item di keranjang</p>
+                  <p className="text-[11px] text-gray-400 max-w-[200px] mx-auto">
+                    Pilih bahan pangan segar di katalog sebelah kiri untuk mulai memesan.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -585,7 +600,7 @@ export default function RestoranClient({ products, userAddresses }: RestoranClie
                   <button
                     onClick={handleCheckout}
                     disabled={loading}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 cursor-pointer"
+                    className="w-full py-3 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl font-bold text-sm transition shadow-xs disabled:opacity-50 cursor-pointer"
                   >
                     {loading ? "Membuat Pesanan..." : "Pesan dan Lanjut Pembayaran"}
                   </button>

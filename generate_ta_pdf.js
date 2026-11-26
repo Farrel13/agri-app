@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
@@ -1529,7 +1530,7 @@ async function renderPDF() {
 
   for (let idx = 0; idx < pagesAwal.length; idx++) {
     const p = pagesAwal[idx];
-    const { width, height } = p.getSize();
+    const { width } = p.getSize();
 
     if (idx > 0) { // Lewatkan halaman 1 (cover)
       const romanNumber = toRoman(idx + 1); // idx 1 -> 'ii', idx 2 -> 'iii', dst.
@@ -1558,7 +1559,7 @@ async function renderPDF() {
 
   for (let idx = 0; idx < pagesUtama.length; idx++) {
     const p = pagesUtama[idx];
-    const { width, height } = p.getSize();
+    const { width } = p.getSize();
     const pageNumber = (idx + 1).toString();
     const textWidth = fontTahoma.widthOfTextAtSize(pageNumber, 10);
 

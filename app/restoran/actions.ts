@@ -164,7 +164,7 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<Plac
         const finalAmount = totalAmount + deliveryFee;
 
         // Buat Order dalam status MENUNGGU_PEMBAYARAN
-        const order = await tx.order.create({
+        await tx.order.create({
           data: {
             orderNumber,
             buyerId: session.user.id,

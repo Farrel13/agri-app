@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
-  updateOrderStatusAction,
   dispatchOrderAction,
   verifyOrderPaymentAction,
 } from "./actions";
@@ -54,7 +53,7 @@ interface OrderData {
 
 interface HubPesananClientProps {
   initialOrders: OrderData[];
-  financialStats: {
+  financialStats?: {
     totalOrders: number;
     completedOrdersCount: number;
     totalRevenue: number;
@@ -66,15 +65,16 @@ interface HubPesananClientProps {
 
 export default function HubPesananClient({
   initialOrders,
-  financialStats,
 }: HubPesananClientProps) {
   const [orders, setOrders] = useState<OrderData[]>(initialOrders);
+  const [prevInitialOrders, setPrevInitialOrders] = useState<OrderData[]>(initialOrders);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; success: boolean } | null>(null);
 
-  useEffect(() => {
+  if (initialOrders !== prevInitialOrders) {
+    setPrevInitialOrders(initialOrders);
     setOrders(initialOrders);
-  }, [initialOrders]);
+  }
 
   useEffect(() => {
     if (msg) {
@@ -134,28 +134,6 @@ export default function HubPesananClient({
 
   // State Modal Cetak Surat Jalan
   const [printOrder, setPrintOrder] = useState<OrderData | null>(null);
-
-  const handleStatusChange = async (orderId: string, newStatus: string) => {
-    try {
-      setLoadingId(orderId);
-      setMsg(null);
-      const res = await updateOrderStatusAction(orderId, newStatus);
-
-      if (res.success) {
-        setMsg({ text: res.message, success: true });
-        setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
-        );
-      } else {
-        setMsg({ text: res.message, success: false });
-      }
-    } catch (err) {
-      console.error("Gagal mengubah status:", err);
-      setMsg({ text: "Terjadi gangguan saat mengubah status pesanan.", success: false });
-    } finally {
-      setLoadingId(null);
-    }
-  };
 
   const handleVerifyPayment = async (orderId: string) => {
     try {
@@ -319,8 +297,6 @@ export default function HubPesananClient({
           {orders.map((ord) => {
             const isPendingPayment = ord.payment?.status !== "LUNAS";
             const canDispatch = ord.status === "DIPROSES_HUB";
-            const isDelivering = ord.status === "DIKIRIM";
-            const isDone = ord.status === "SELESAI";
 
             return (
               <div

@@ -3,33 +3,36 @@
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
+  const [prevPathname, setPrevPathname] = useState(pathname);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Close mobile menu when route changes
-  useEffect(() => {
+  // Close mobile menu when route changes (Adjusting state during render)
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setMobileMenuOpen(false);
-  }, [pathname]);
+  }
 
   // Jangan render jika belum login atau sedang loading
   if (status === "loading" || !session) return null;
 
   const role = session.user?.role;
+  const username = session.user?.username || session.user?.name || "pengguna";
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 h-14 flex justify-between items-center gap-4">
-        <div className="flex items-center gap-4 sm:gap-6">
+    <nav className="bg-white border-b border-gray-200 sticky top-0 z-40 font-sans shadow-2xs">
+      <div className="max-w-7xl mx-auto px-4 h-15 flex justify-between items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-6">
           {/* Mobile hamburger button */}
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="sm:hidden p-1.5 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition focus:outline-none"
+            className="sm:hidden p-1.5 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition focus:outline-none cursor-pointer"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? (
@@ -43,29 +46,32 @@ export default function Navbar() {
             )}
           </button>
 
-          <Link href="/" className="font-bold text-emerald-600 text-lg flex items-center gap-1.5">
+          <Link href="/" className="font-extrabold text-emerald-800 text-lg flex items-center gap-2 tracking-tight">
+            <span className="w-8 h-8 rounded-lg bg-emerald-800 text-white flex items-center justify-center text-sm shadow-xs">
+              🌾
+            </span>
             <span>AgriApp</span>
           </Link>
 
           {/* Navigasi Khusus Restoran (Desktop) */}
           {role === "RESTAURANT" && (
-            <div className="hidden sm:flex items-center gap-2 text-xs font-medium">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold">
               <Link
                 href="/restoran"
-                className={`px-3 py-1.5 rounded-md transition ${
+                className={`px-3 py-1.5 rounded-lg transition ${
                   pathname === "/restoran"
-                    ? "bg-emerald-50 text-emerald-700 font-bold"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-200"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
                 Katalog Bahan
               </Link>
               <Link
                 href="/restoran/pesanan"
-                className={`px-3 py-1.5 rounded-md transition ${
+                className={`px-3 py-1.5 rounded-lg transition ${
                   pathname === "/restoran/pesanan"
-                    ? "bg-emerald-50 text-emerald-700 font-bold"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-200"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
                 Riwayat Pesanan
@@ -75,23 +81,23 @@ export default function Navbar() {
 
           {/* Navigasi Khusus Hub (Desktop) */}
           {role === "HUB" && (
-            <div className="hidden sm:flex items-center gap-2 text-xs font-medium">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold">
               <Link
                 href="/hub"
-                className={`px-3 py-1.5 rounded-md transition ${
+                className={`px-3 py-1.5 rounded-lg transition ${
                   pathname === "/hub"
-                    ? "bg-emerald-50 text-emerald-700 font-bold"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-200"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
                 Verifikasi dan Etalase
               </Link>
               <Link
                 href="/hub/pesanan"
-                className={`px-3 py-1.5 rounded-md transition ${
+                className={`px-3 py-1.5 rounded-lg transition ${
                   pathname === "/hub/pesanan"
-                    ? "bg-emerald-50 text-emerald-700 font-bold"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-200"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
                 Pesanan Masuk
@@ -101,35 +107,35 @@ export default function Navbar() {
 
           {/* Navigasi Khusus Petani (Desktop) */}
           {role === "PETANI" && (
-            <div className="hidden sm:flex items-center gap-2 text-xs font-medium">
+            <div className="hidden sm:flex items-center gap-2 text-xs font-semibold">
               <Link
                 href="/petani"
-                className={`px-3 py-1.5 rounded-md transition ${
+                className={`px-3 py-1.5 rounded-lg transition ${
                   pathname === "/petani"
-                    ? "bg-emerald-50 text-emerald-700 font-bold"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-200"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
                 Panen dan Penjualan
               </Link>
               <Link
                 href="/petani/tambah"
-                className="bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700 transition font-medium"
+                className="bg-emerald-800 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-900 transition font-medium shadow-xs flex items-center gap-1"
               >
-                + Upload Panen
+                <span>+</span> Upload Panen
               </Link>
             </div>
           )}
 
           {/* Navigasi Khusus Admin (Desktop) */}
           {role === "ADMIN" && (
-            <div className="hidden sm:flex items-center gap-2 text-xs font-medium">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold">
               <Link
                 href="/admin"
-                className={`px-3 py-1.5 rounded-md transition ${
+                className={`px-3 py-1.5 rounded-lg transition ${
                   pathname === "/admin"
-                    ? "bg-emerald-50 text-emerald-700 font-bold"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-200"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
                 Pusat Kontrol Admin
@@ -138,15 +144,18 @@ export default function Navbar() {
           )}
         </div>
 
-        <div className="flex gap-2.5 sm:gap-3 items-center">
+        {/* Sisi Kanan: Notifikasi, Identitas (farrel / PETANI), dan Logout */}
+        <div className="flex gap-2 sm:gap-3 items-center">
           {/* Lonceng Notifikasi Terintegrasi */}
           <NotificationBell />
 
-          <div className="hidden md:flex flex-col text-right">
-            <span className="text-xs font-medium text-gray-800 leading-tight">
-              {session.user?.name}
+          {/* Identitas Pengguna + Label Peran (contoh: farel / HUB, farrel / PETANI) */}
+          <div className="hidden sm:flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-lg text-xs">
+            <span className="font-semibold text-gray-800 max-w-[130px] truncate" title={session.user?.name || username}>
+              {username}
             </span>
-            <span className="text-[10px] text-gray-500 font-mono">
+            <span className="text-gray-400 font-light">/</span>
+            <span className="font-bold text-emerald-800 uppercase text-[11px] tracking-wide">
               {role}
             </span>
           </div>
@@ -154,7 +163,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/", redirect: true })}
-            className="text-xs bg-white text-rose-600 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-md font-medium hover:bg-rose-50 transition border border-rose-200 cursor-pointer"
+            className="text-xs bg-white text-rose-600 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg font-semibold hover:bg-rose-50 transition border border-rose-200 cursor-pointer shadow-2xs"
           >
             Logout
           </button>
@@ -164,32 +173,32 @@ export default function Navbar() {
       {/* Mobile Menu Panel */}
       {mobileMenuOpen && (
         <div className="sm:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-2 animate-in slide-in-from-top-1">
-          <div className="text-[11px] text-gray-400 font-medium px-2 pb-1 border-b border-gray-100 flex justify-between items-center">
-            <span>Masuk sebagai: <strong className="text-gray-700">{session.user?.name}</strong></span>
-            <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px] font-mono">{role}</span>
+          <div className="text-[11px] text-gray-500 font-medium px-2 py-1.5 bg-gray-50 rounded-lg border border-gray-100 flex justify-between items-center">
+            <span>Masuk: <strong className="text-gray-800">{username}</strong></span>
+            <span className="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px]">{role}</span>
           </div>
 
           {role === "RESTAURANT" && (
             <div className="flex flex-col gap-1 pt-1">
               <Link
                 href="/restoran"
-                className={`px-3 py-2 rounded-md text-xs font-medium ${
+                className={`px-3 py-2 rounded-lg text-xs font-semibold ${
                   pathname === "/restoran"
-                    ? "bg-emerald-50 text-emerald-700 font-semibold"
+                    ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-200"
                     : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                Katalog Bahan Baku
+                Katalog Bahan
               </Link>
               <Link
                 href="/restoran/pesanan"
-                className={`px-3 py-2 rounded-md text-xs font-medium ${
+                className={`px-3 py-2 rounded-lg text-xs font-semibold ${
                   pathname === "/restoran/pesanan"
-                    ? "bg-emerald-50 text-emerald-700 font-semibold"
+                    ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-200"
                     : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                Riwayat & Status Pesanan
+                Riwayat Pesanan
               </Link>
             </div>
           )}
@@ -198,9 +207,9 @@ export default function Navbar() {
             <div className="flex flex-col gap-1 pt-1">
               <Link
                 href="/hub"
-                className={`px-3 py-2 rounded-md text-xs font-medium ${
+                className={`px-3 py-2 rounded-lg text-xs font-semibold ${
                   pathname === "/hub"
-                    ? "bg-emerald-50 text-emerald-700 font-semibold"
+                    ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-200"
                     : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
@@ -208,13 +217,13 @@ export default function Navbar() {
               </Link>
               <Link
                 href="/hub/pesanan"
-                className={`px-3 py-2 rounded-md text-xs font-medium ${
+                className={`px-3 py-2 rounded-lg text-xs font-semibold ${
                   pathname === "/hub/pesanan"
-                    ? "bg-emerald-50 text-emerald-700 font-semibold"
+                    ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-200"
                     : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                Pesanan Masuk & Laba
+                Pesanan Masuk
               </Link>
             </div>
           )}
@@ -223,9 +232,9 @@ export default function Navbar() {
             <div className="flex flex-col gap-1 pt-1">
               <Link
                 href="/petani"
-                className={`px-3 py-2 rounded-md text-xs font-medium ${
+                className={`px-3 py-2 rounded-lg text-xs font-semibold ${
                   pathname === "/petani"
-                    ? "bg-emerald-50 text-emerald-700 font-semibold"
+                    ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-200"
                     : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
@@ -233,7 +242,7 @@ export default function Navbar() {
               </Link>
               <Link
                 href="/petani/tambah"
-                className="px-3 py-2 rounded-md text-xs font-medium bg-emerald-600 text-white text-center mt-1"
+                className="bg-emerald-800 text-white px-3 py-2 rounded-lg font-semibold text-xs shadow-xs text-center"
               >
                 + Upload Panen Baru
               </Link>
@@ -244,9 +253,9 @@ export default function Navbar() {
             <div className="flex flex-col gap-1 pt-1">
               <Link
                 href="/admin"
-                className={`px-3 py-2 rounded-md text-xs font-medium ${
+                className={`px-3 py-2 rounded-lg text-xs font-semibold ${
                   pathname === "/admin"
-                    ? "bg-emerald-50 text-emerald-700 font-semibold"
+                    ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-200"
                     : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
@@ -254,17 +263,6 @@ export default function Navbar() {
               </Link>
             </div>
           )}
-
-          <div className="pt-2 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={() => signOut({ callbackUrl: "/", redirect: true })}
-              className="w-full text-left px-3 py-2 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 transition cursor-pointer flex items-center justify-between"
-            >
-              <span>Keluar Akun (Logout)</span>
-              <span>➔</span>
-            </button>
-          </div>
         </div>
       )}
     </nav>
